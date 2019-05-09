@@ -15,6 +15,10 @@
 #include <string>
 #include <deque>
 #include <algorithm>
+#include <limits>
+#include <numeric>
+#include <climits>
+#include <unordered_set>
 
 #include "data/DataNode.h"
 
@@ -26,6 +30,7 @@
 #include "tools/DynamicString.h"
 #include "tools/FunctionSet.h"
 #include "tools/Graph.h"
+#include "tools/IndexMap.h"
 #include "tools/Lexer.h"
 #include "tools/NFA.h"
 #include "tools/RegEx.h"
@@ -36,6 +41,7 @@
 #include "tools/flex_function.h"
 #include "tools/functions.h"
 #include "tools/graph_utils.h"
+#include "tools/hash_utils.h"
 //#include "tools/grid.h"
 #include "tools/info_theory.h"
 #include "tools/lexer_utils.h"
@@ -72,7 +78,11 @@
 
 TEST_CASE("Test Binomial", "[tools]")
 {
-  emp::Random random;
+  // test over a consistent set of seeds
+  for (int s = 1; s <= 200; ++s) {
+
+  REQUIRE(s > 0);
+  emp::Random random(s);
 
   const double flip_prob = 0.03;
   const size_t num_flips = 100;
@@ -108,6 +118,7 @@ TEST_CASE("Test Binomial", "[tools]")
   //   std::cout << " " << bi100.PickRandom(random);
   // }
   // std::cout << std::endl;
+  }
 }
 
 // this templating is necessary to force full coverage of templated classes.
@@ -519,12 +530,80 @@ TEST_CASE("Test graph", "[tools]")
 // emp::Random grand;
 TEST_CASE("Test Graph utils", "[tools]")
 {
-  emp::Random random;
+  emp::Random random(1);
   // emp::Graph graph( emp::build_graph_tree(20, random) );
   // emp::Graph graph( emp::build_graph_random(20, 40, random) );
   emp::Graph graph( emp::build_graph_grid(5, 4, random) );
 
   // graph.PrintSym();
+}
+
+// // TODO: add asserts
+// emp::Random grand;
+TEST_CASE("Test hash_utils", "[tools]")
+{
+
+  REQUIRE(emp::szudzik_hash((uint32_t)0, (uint32_t)0) == (uint64_t)0);
+
+  REQUIRE(emp::szudzik_hash((uint32_t)0, (uint32_t)1) == (uint64_t)1);
+
+  REQUIRE(emp::szudzik_hash((uint32_t)1, (uint32_t)0) == (uint64_t)2);
+  REQUIRE(emp::szudzik_hash((uint32_t)1, (uint32_t)1) == (uint64_t)3);
+
+  REQUIRE(emp::szudzik_hash((uint32_t)0, (uint32_t)2) == (uint64_t)4);
+  REQUIRE(emp::szudzik_hash((uint32_t)1, (uint32_t)2) == (uint64_t)5);
+
+  REQUIRE(emp::szudzik_hash((uint32_t)2, (uint32_t)0) == (uint64_t)6);
+  REQUIRE(emp::szudzik_hash((uint32_t)2, (uint32_t)1) == (uint64_t)7);
+  REQUIRE(emp::szudzik_hash((uint32_t)2, (uint32_t)2) == (uint64_t)8);
+
+  REQUIRE(emp::szudzik_hash((uint32_t)0, (uint32_t)3) == (uint64_t)9);
+  REQUIRE(emp::szudzik_hash((uint32_t)1, (uint32_t)3) == (uint64_t)10);
+  REQUIRE(emp::szudzik_hash((uint32_t)2, (uint32_t)3) == (uint64_t)11);
+
+  REQUIRE(emp::szudzik_hash((uint32_t)3, (uint32_t)0) == (uint64_t)12);
+  REQUIRE(emp::szudzik_hash((uint32_t)3, (uint32_t)1) == (uint64_t)13);
+  REQUIRE(emp::szudzik_hash((uint32_t)3, (uint32_t)2) == (uint64_t)14);
+  REQUIRE(emp::szudzik_hash((uint32_t)3, (uint32_t)3) == (uint64_t)15);
+
+
+  REQUIRE(emp::szudzik_hash((uint32_t)0, (uint32_t)0) == (uint64_t)0);
+
+  REQUIRE(emp::szudzik_hash((uint32_t)0, (uint32_t)1) == (uint64_t)1);
+
+  REQUIRE(emp::szudzik_hash((uint32_t)1, (uint32_t)0) == (uint64_t)2);
+  REQUIRE(emp::szudzik_hash((uint32_t)1, (uint32_t)1) == (uint64_t)3);
+
+  REQUIRE(emp::szudzik_hash((uint32_t)0, (uint32_t)2) == (uint64_t)4);
+  REQUIRE(emp::szudzik_hash((uint32_t)1, (uint32_t)2) == (uint64_t)5);
+
+  REQUIRE(emp::szudzik_hash((uint32_t)2, (uint32_t)0) == (uint64_t)6);
+  REQUIRE(emp::szudzik_hash((uint32_t)2, (uint32_t)1) == (uint64_t)7);
+  REQUIRE(emp::szudzik_hash((uint32_t)2, (uint32_t)2) == (uint64_t)8);
+
+  REQUIRE(emp::szudzik_hash((uint32_t)0, (uint32_t)3) == (uint64_t)9);
+  REQUIRE(emp::szudzik_hash((uint32_t)1, (uint32_t)3) == (uint64_t)10);
+  REQUIRE(emp::szudzik_hash((uint32_t)2, (uint32_t)3) == (uint64_t)11);
+
+  REQUIRE(emp::szudzik_hash((uint32_t)3, (uint32_t)0) == (uint64_t)12);
+  REQUIRE(emp::szudzik_hash((uint32_t)3, (uint32_t)1) == (uint64_t)13);
+  REQUIRE(emp::szudzik_hash((uint32_t)3, (uint32_t)2) == (uint64_t)14);
+  REQUIRE(emp::szudzik_hash((uint32_t)3, (uint32_t)3) == (uint64_t)15);
+
+  emp::vector<uint64_t> hash_vec;
+
+  for(uint32_t i = 0; i < 10; ++i) {
+    for(uint32_t j = 0; j < 10; ++j) {
+      for(uint32_t s : { 0, 100, 100000 }) {
+        hash_vec.push_back(emp::szudzik_hash(s+i,s+j));
+      }
+    }
+  }
+
+  std::unordered_set<uint64_t> hash_set(hash_vec.begin(), hash_vec.end());
+
+  REQUIRE(hash_vec.size() == hash_set.size());
+
 }
 
 
@@ -546,6 +625,91 @@ TEST_CASE("Test Graph utils", "[tools]")
   //TODO: moar asserts
 }*/
 
+
+// TODO: add moar asserts
+TEST_CASE("Test IndexMap", "[tools]")
+{
+  emp::IndexMap imap(8);
+  imap[0] = 1.0;
+  imap[1] = 1.0;
+  imap[2] = 1.0;
+  imap[3] = 1.0;
+  imap[4] = 2.0;
+  imap[5] = 2.0;
+  imap[6] = 0.0;
+  imap[7] = 8.0;
+  
+  REQUIRE(imap.GetSize() == 8);
+  REQUIRE(imap.GetWeight() == 16.0);
+  REQUIRE(imap.GetWeight(2) == 1.0);
+  REQUIRE(imap.GetWeight(5) == 2.0);
+  REQUIRE(imap.GetWeight(7) == 8.0);
+  REQUIRE(imap[5] == 2.0);
+  REQUIRE(imap.GetProb(4) == 0.125);
+  REQUIRE(imap.GetProb(7) == 0.5);
+  REQUIRE(imap.Index(7.1) == 5);
+
+  // Add a new element to the end of the map that takes up half of the weight.
+  imap.PushBack(16.0);
+
+  REQUIRE(imap.GetSize() == 9);
+  REQUIRE(imap.GetWeight() == 32.0);
+  REQUIRE(imap.GetWeight(2) == 1.0);
+  REQUIRE(imap.GetWeight(5) == 2.0);
+  REQUIRE(imap.GetWeight(7) == 8.0);
+  REQUIRE(imap.GetWeight(8) == 16.0);
+  REQUIRE(imap[5] == 2.0);
+  REQUIRE(imap.GetProb(7) == 0.25);
+  REQUIRE(imap.Index(7.1) == 5);
+  REQUIRE(imap.Index(17.1) == 8);
+
+  emp::IndexMap imap_bak(imap);
+  imap.AdjustAll(10.0);
+
+  REQUIRE(imap.GetSize() == 9);
+  REQUIRE(imap.GetWeight() == 90.0);
+  REQUIRE(imap.GetWeight(2) == 10.0);
+  REQUIRE(imap.GetWeight(8) == 10.0);
+  REQUIRE(imap[5] == 10.0);
+  REQUIRE(imap.Index(7.1) == 0);
+  REQUIRE(imap.Index(75.0) == 7);
+
+  // Did the backup copy work correctly?
+  REQUIRE(imap_bak.GetSize() == 9);
+  REQUIRE(imap_bak.GetWeight() == 32.0);
+  REQUIRE(imap_bak.GetWeight(2) == 1.0);
+  REQUIRE(imap_bak.GetWeight(5) == 2.0);
+  REQUIRE(imap_bak.GetWeight(7) == 8.0);
+  REQUIRE(imap_bak.GetWeight(8) == 16.0);
+  REQUIRE(imap_bak[5] == 2.0);
+  REQUIRE(imap_bak.GetProb(7) == 0.25);
+  REQUIRE(imap_bak.Index(7.1) == 5);
+  REQUIRE(imap_bak.Index(17.1) == 8);
+
+  // Can we add on values from one index map to another?
+  imap += imap_bak;
+
+  REQUIRE(imap.GetSize() == 9);
+  REQUIRE(imap.GetWeight() == 122.0);
+  REQUIRE(imap.GetWeight(2) == 11.0);
+  REQUIRE(imap.GetWeight(5) == 12.0);
+  REQUIRE(imap.GetWeight(7) == 18.0);
+  REQUIRE(imap.GetWeight(8) == 26.0);
+  REQUIRE(imap[5] == 12.0);
+  REQUIRE(imap.Index(7.1) == 0);
+  REQUIRE(imap.Index(90.0) == 7);
+
+  // And subtraction?
+  imap -= imap_bak;
+
+  REQUIRE(imap.GetSize() == 9);
+  REQUIRE(imap.GetWeight() == 90.0);
+  REQUIRE(imap.GetWeight(2) == 10.0);
+  REQUIRE(imap.GetWeight(8) == 10.0);
+  REQUIRE(imap[5] == 10.0);
+  REQUIRE(imap.Index(7.1) == 0);
+  REQUIRE(imap.Index(75.0) == 7);
+}
 
 TEST_CASE("Test info_theory", "[tools]")
 {
@@ -1043,7 +1207,11 @@ TEST_CASE("Test NullStream", "[tools]")
 
 TEST_CASE("Test random", "[tools]")
 {
-  emp::Random rng;
+  // test over a consistent set of seeds
+  for(int s = 1; s < 102; ++s) {
+
+  REQUIRE(s > 0);
+  emp::Random rng(s);
 
   // Test GetDouble with the law of large numbers.
   emp::vector<int> val_counts(10);
@@ -1089,6 +1257,57 @@ TEST_CASE("Test random", "[tools]")
     REQUIRE(mean_value < max_threshold);
   }
 
+  // Test GetUInt()
+  emp::vector<uint32_t> uint32_draws;
+  total = 0.0;
+  for (size_t i = 0; i < num_tests; i++) {
+    const uint32_t cur_value = rng.GetUInt();
+    total += cur_value;
+    uint32_draws.push_back(cur_value);
+  }
+
+  {
+  const double expected_mean = ((double)std::numeric_limits<uint32_t>::max())/2.0;
+  const double min_threshold = (expected_mean*0.995);
+  const double max_threshold = (expected_mean*1.005);
+  double mean_value = total/(double) num_tests;
+
+  REQUIRE(mean_value > min_threshold);
+  REQUIRE(mean_value < max_threshold);
+  // ensure that all bits are set at least once and unset at least once
+  REQUIRE(std::numeric_limits<uint32_t>::max() == std::accumulate(uint32_draws.begin(),uint32_draws.end(),(uint32_t)0,
+    [](uint32_t accumulator, uint32_t val){ return accumulator | val; })
+  );
+  REQUIRE(std::numeric_limits<uint32_t>::max() == std::accumulate(uint32_draws.begin(),uint32_draws.end(),(uint32_t)0,
+    [](uint32_t accumulator, uint32_t val){ return accumulator | (~val); })
+  );
+  }
+  // Test GetUInt64
+  emp::vector<uint64_t> uint64_draws;
+  total = 0.0;
+  for (size_t i = 0; i < num_tests; i++) {
+    const uint64_t cur_value = rng.GetUInt64();
+    total += cur_value/(double)num_tests;
+    uint64_draws.push_back(cur_value);
+  }
+
+  {
+  const double expected_mean = ((double)std::numeric_limits<uint64_t>::max())/2.0;
+  const double min_threshold = (expected_mean*0.995);
+  const double max_threshold = (expected_mean*1.005);
+  double mean_value = total; // values were divided by num_tests when added
+
+  REQUIRE(mean_value > min_threshold);
+  REQUIRE(mean_value < max_threshold);
+  // ensure that all bits are set at least once and unset at least once
+  REQUIRE(std::numeric_limits<uint64_t>::max() == std::accumulate(uint64_draws.begin(),uint64_draws.end(),(uint64_t)0,
+    [](uint64_t accumulator, uint64_t val){ return accumulator | val; })
+  );
+  REQUIRE(std::numeric_limits<uint64_t>::max() == std::accumulate(uint64_draws.begin(),uint64_draws.end(),(uint64_t)0,
+    [](uint64_t accumulator, uint64_t val){ return accumulator | (~val); })
+  );
+  }
+
   // Test P
   double flip_prob = 0.56789;
   int hit_count = 0;
@@ -1106,6 +1325,7 @@ TEST_CASE("Test random", "[tools]")
   emp::vector<size_t> choices = Choose(rng,100,10);
 
   REQUIRE(choices.size() == 10);
+  }
 }
 
 
@@ -1317,7 +1537,7 @@ TEST_CASE("Test sequence utils", "[tools]")
 
 
 
-TEST_CASE("Test string utils", "[tools]")
+TEST_CASE("Test string_utils", "[tools]")
 {
 
   // TEST1: lets test our conversion to an escaped string.
@@ -1392,13 +1612,11 @@ TEST_CASE("Test string utils", "[tools]")
   REQUIRE(first_line == "anokaystring.");
 
 
-
   popped_str = emp::string_pop(first_line, "ns");
 
 
   REQUIRE(popped_str == "a");
   REQUIRE(first_line == "okaystring.");
-
 
 
   popped_str = emp::string_pop(first_line, 'y');
@@ -1414,6 +1632,26 @@ TEST_CASE("Test string utils", "[tools]")
 
   emp::compress_whitespace(base_string);
   REQUIRE(base_string == "This is -MY- very best string!!!!");
+
+
+  std::string view_test = "This is my view test!";
+  REQUIRE( emp::view_string(view_test) == "This is my view test!" );
+  REQUIRE( emp::view_string(view_test, 5) == "is my view test!" );
+  REQUIRE( emp::view_string(view_test, 8, 2) == "my" );
+  REQUIRE( emp::view_string_front(view_test,4) == "This" );
+  REQUIRE( emp::view_string_back(view_test, 5) == "test!" );
+  REQUIRE( emp::view_string_range(view_test, 11, 15) == "view" );
+  REQUIRE( emp::view_string_to(view_test, ' ') == "This" );
+  REQUIRE( emp::view_string_to(view_test, ' ', 5) == "is" );
+
+  emp::vector<std::string_view> slice_view = emp::view_slices(view_test, ' ');
+  REQUIRE( slice_view.size() == 5 );
+  REQUIRE( slice_view[0] == "This" );
+  REQUIRE( slice_view[1] == "is" );
+  REQUIRE( slice_view[2] == "my" );
+  REQUIRE( slice_view[3] == "view" );
+  REQUIRE( slice_view[4] == "test!" );
+
 
   auto slices = emp::slice("This is a test of a different version of slice.", ' ');
 
@@ -1687,6 +1925,15 @@ TEST_CASE("Test vector utils", "[tools]") {
   REQUIRE(!emp::Has(v1, 4));
   REQUIRE(emp::Product(v1) == 180);
   REQUIRE(emp::Slice(v1,1,3) == emp::vector<int>({2,3}));
+
+  // Test handling vector-of-vectors.
+  using vv_int_t = emp::vector< emp::vector< int > >;
+  vv_int_t vv = {{1,2,3},{4,5,6},{7,8,9}};
+  vv_int_t vv2 = emp::Transpose(vv);
+  REQUIRE(vv[0][2] == 3);
+  REQUIRE(vv[1][0] == 4);
+  REQUIRE(vv2[0][2] == 7);
+  REQUIRE(vv2[1][0] == 2);
 }
 
 // DEFINE_ATTR(Foo);

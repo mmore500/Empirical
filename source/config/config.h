@@ -192,7 +192,7 @@ namespace emp {
 
       void Add(ConfigEntry * new_entry) { entry_set.push_back(new_entry); }
 
-      void Write(std::ostream & out) {
+      void Write(std::ostream & out) const {
         // Print header information with the group name.
         out << "### " << name << " ###" << std::endl;
         // Print group description.
@@ -234,7 +234,7 @@ namespace emp {
         out << std::endl; // Skip a line after each group.
       }
 
-      void WriteMacros(std::ostream & out, bool as_const) {
+      void WriteMacros(std::ostream & out, bool as_const) const {
         // Print header information to register group.
         out << "  GROUP(" << name << ", \"" << desc << "\"),\n";
 
@@ -382,6 +382,9 @@ namespace emp {
     auto begin() -> decltype(var_map.begin()) { return var_map.begin(); }
     auto end() -> decltype(var_map.end()) { return var_map.end(); }
 
+    auto begin() const -> const decltype(var_map.begin()) { return var_map.begin(); }
+    auto end() const -> const decltype(var_map.end()) { return var_map.end(); }
+
     Config & SetExpandOK(bool ok=true) { expand_ok = ok; return *this; }
 
     bool Has(const std::string & setting_name) const {
@@ -433,10 +436,10 @@ namespace emp {
     }
 
     // Generate a text representation (typically a file) for the state of Config
-    void Write(std::ostream & out) {
+    void Write(std::ostream & out) const {
       // @CAO Start by printing some file header information?
 
-      // Next print each group and it's information.
+      // Next print each group and its information.
       for (auto it = group_set.begin(); it != group_set.end(); it++) {
         (*it)->Write(out);
       }
@@ -451,14 +454,14 @@ namespace emp {
     }
 
     // If a string is passed into Write, treat it as a filename.
-    void Write(std::string filename) {
+    void Write(std::string filename) const {
       std::ofstream out(filename);
       Write(out);
       out.close();
     }
 
     // Generate a text representation (typically a file) for the state of Config
-    void WriteMacros(std::ostream & out, bool as_const=false) {
+    void WriteMacros(std::ostream & out, bool as_const=false) const {
       out << "/////////////////////////////////////////////////////////////////////////////////\n"
           << "//  This is an auto-generated file that defines a set of configuration options.\n"
           << "//\n"
@@ -497,7 +500,7 @@ namespace emp {
     }
 
     // If a string is passed into Write, treat it as a filename.
-    void WriteMacros(std::string filename, bool as_const=false) {
+    void WriteMacros(std::string filename, bool as_const=false) const {
       std::ofstream out(filename);
       WriteMacros(out, as_const);
       out.close();
@@ -676,6 +679,7 @@ namespace emp {
                                      static_assert(false, "Unknown Config option: " #CMD);, ~)
 #define EMP_CONFIG__ARG_OKAY_VALUE(...) ~,
 #define EMP_CONFIG__ARG_OKAY_CONST(...) ~,
+#define EMP_CONFIG__ARG_OKAY_const(...) ~,
 #define EMP_CONFIG__ARG_OKAY_GROUP(...) ~,
 #define EMP_CONFIG__ARG_OKAY_ALIAS(...) ~,
 #define EMP_CONFIG__ARG_OKAY_ ~,
@@ -686,6 +690,7 @@ namespace emp {
 #define EMP_CONFIG__DECLARE(CMD) EMP_CONFIG__DECLARE_ ## CMD
 #define EMP_CONFIG__DECLARE_VALUE(NAME, TYPE, DEFAULT, DESC) TYPE m_ ## NAME;
 #define EMP_CONFIG__DECLARE_CONST(NAME, TYPE, DEFAULT, DESC)
+#define EMP_CONFIG__DECLARE_const(NAME, TYPE, DEFAULT, DESC)
 #define EMP_CONFIG__DECLARE_GROUP(NAME, DESC)
 #define EMP_CONFIG__DECLARE_ALIAS(NAME)
 #define EMP_CONFIG__DECLARE_
@@ -694,6 +699,7 @@ namespace emp {
 #define EMP_CONFIG__CONSTRUCT(CMD) EMP_CONFIG__CONSTRUCT_ ## CMD
 #define EMP_CONFIG__CONSTRUCT_VALUE(NAME, TYPE, DEFAULT, DESC) , m_ ## NAME(DEFAULT)
 #define EMP_CONFIG__CONSTRUCT_CONST(NAME, TYPE, DEFAULT, DESC)
+#define EMP_CONFIG__CONSTRUCT_const(NAME, TYPE, DEFAULT, DESC)
 #define EMP_CONFIG__CONSTRUCT_GROUP(NAME, DESC)
 #define EMP_CONFIG__CONSTRUCT_ALIAS(NAME)
 #define EMP_CONFIG__CONSTRUCT_
@@ -701,10 +707,13 @@ namespace emp {
 // Macros to initialize internal representation of variables.
 #define EMP_CONFIG__INIT(CMD) EMP_CONFIG__INIT_ ## CMD
 #define EMP_CONFIG__INIT_VALUE(NAME, TYPE, DEFAULT, DESC)                               \
-  var_map[#NAME] = new tConfigEntry<TYPE>(#NAME, #TYPE, #DEFAULT, DESC, m_ ## NAME);  \
+  var_map[#NAME] = new tConfigEntry<TYPE>(#NAME, #TYPE, #DEFAULT, DESC, m_ ## NAME);    \
   GetActiveGroup()->Add(var_map[#NAME]);
 #define EMP_CONFIG__INIT_CONST(NAME, TYPE, VALUE, DESC)                                 \
-  var_map[#NAME] = new tConfigConstEntry<TYPE>(#NAME, #TYPE, #VALUE, DESC, VALUE);    \
+  var_map[#NAME] = new tConfigConstEntry<TYPE>(#NAME, #TYPE, #VALUE, DESC, VALUE);      \
+  GetActiveGroup()->Add(var_map[#NAME]);
+#define EMP_CONFIG__INIT_const(NAME, TYPE, VALUE, DESC)                                 \
+  var_map[#NAME] = new tConfigConstEntry<TYPE>(#NAME, #TYPE, #VALUE, DESC, VALUE);      \
   GetActiveGroup()->Add(var_map[#NAME]);
 #define EMP_CONFIG__INIT_GROUP(NAME, DESC)                                              \
   group_set.push_back(new ConfigGroup(#NAME, DESC));
@@ -727,6 +736,7 @@ namespace emp {
     return VALUE;                                                               \
   }                                                                             \
   bool NAME ## _is_const() const { return true; }
+#define EMP_CONFIG__ACCESS_const(NAME, TYPE, VALUE, DESC) EMP_CONFIG__ACCESS_CONST(NAME, TYPE, VALUE, DESC)
 #define EMP_CONFIG__ACCESS_GROUP(NAME, DESC)
 #define EMP_CONFIG__ACCESS_ALIAS(NAME)
 #define EMP_CONFIG__ACCESS_
