@@ -174,7 +174,7 @@ namespace emp {
         return res;
       }();
 
-      // if word is a valid command or alias for a command,
+      // If word is a valid command or alias for a command,
       // return the deflagged, dealiased command
       // otherwise, it's a positional command
       auto parse_alias = [deflagged, args, alias_map, specs](size_t i) {
@@ -189,7 +189,10 @@ namespace emp {
           );
       };
 
-      for(size_t i = 0; i < args.size(); ++i) {
+      if (!args.size()) return res;
+      res.insert({"_command", {args[0]}});
+
+      for(size_t i = 1; i < args.size(); ++i) {
 
         const std::string & command = parse_alias(i);
 
@@ -268,6 +271,13 @@ namespace emp {
             }
           }
         )},
+        {"_command", ArgSpec(
+          1,
+          1,
+          "Command name.",
+          {},
+          [](std::optional<emp::vector<std::string>> res){ /*no-op*/ }
+        )},
         {"help", ArgSpec(0, "Print help information.", {"h"})},
         {"gen", ArgSpec(
           1,
@@ -280,19 +290,21 @@ namespace emp {
               config->Write(cfg_file);
             }
           }
-        )},
-        {"make-const", ArgSpec(
-          1,
-          "Generate const version of macros file.",
-          {},
-          [config](std::optional<pack_t> res){
-            if (res && config) {
-              const std::string macro_file = res->front();
-              std::cout << "Generating new macros file: " << macro_file << std::endl;
-              config->WriteMacros(macro_file, true);
-            }
-          }
         )}
+        // @CAO: Removing "make-const" as a default until we have it working properly.
+        //,
+        // {"make-const", ArgSpec(
+        //   1,
+        //   "Generate const version of macros file.",
+        //   {},
+        //   [config](std::optional<pack_t> res){
+        //     if (res && config) {
+        //       const std::string macro_file = res->front();
+        //       std::cout << "Generating new macros file: " << macro_file << std::endl;
+        //       config->WriteMacros(macro_file, true);
+        //     }
+        //   }
+        // )}
       });
 
       if (config) {
@@ -351,7 +363,7 @@ namespace emp {
       const spec_map_t & specs_ = make_builtin_specs()
     ) : packs(packs_), specs(specs_) {
 
-      // flatten any argument packs with flatten specified
+      // Flatten any argument packs with `flatten` specified; move into packs.
       for (auto & [n, s] : specs) {
         if (s.flatten && packs.count(n)) {
           pack_t flat = std::accumulate(
@@ -448,6 +460,8 @@ namespace emp {
       const emp::Ptr<Config> config=nullptr,
       std::ostream & os=std::cout
     ) {
+
+      UseArg("_command");
 
       if (UseArg("help")) {
         PrintHelp(os);
