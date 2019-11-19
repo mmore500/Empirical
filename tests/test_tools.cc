@@ -4239,6 +4239,7 @@ TEST_CASE("Test MatchBin", "[tools]")
   REQUIRE( bin.GetTags(bin.Match(10, 2)) == (emp::vector<int>{6}) );
 
 }
+}
 
 
 
