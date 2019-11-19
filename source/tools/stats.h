@@ -62,8 +62,8 @@ namespace emp {
   ShannonEntropy(C & elements) {
 
     // Count number of each value present
-    emp::map<typename C::value_type, int> counts;
-    for (auto element : elements) {
+    std::map<typename C::value_type, int> counts;
+    for (auto & element : elements) {
       if (counts.find(element) != counts.end()) {
 	       counts[element]++;
       } else {
@@ -73,7 +73,7 @@ namespace emp {
 
     // Shannon entropy calculation
     double result = 0;
-    for (auto element : counts) {
+    for (auto & element : counts) {
       double p = double(element.second)/elements.size();
       result +=  p * Log2(p);
     }
@@ -84,12 +84,12 @@ namespace emp {
   /// Calculate Shannon Entropy of the members of the container when those members are pointers
   template <typename C>
   typename std::enable_if<emp::is_ptr_type<typename C::value_type>::value, double>::type
-  ShannonEntropy(C & elements) {
+  ShannonEntropy(const C & elements) {
     //   std::cout<< "In se" << std::endl;
     using pointed_at = typename emp::remove_ptr_type<typename C::value_type>::type;
     // Count number of each value present
-    emp::map<pointed_at, int> counts;
-    for (auto element : elements) {
+    std::map<pointed_at, int> counts;
+    for (auto & element : elements) {
       if (counts.find(*element) != counts.end()) {
         counts[*element]++;
       } else {
@@ -99,7 +99,7 @@ namespace emp {
     }
     // Shannon entropy calculation
     double result = 0;
-    for (auto element : counts) {
+    for (auto & element : counts) {
       double p = double(element.second)/elements.size();
       result +=  p * log2(p);
     }
@@ -139,16 +139,27 @@ namespace emp {
   /// If values are pointers, they will be automatically de-referenced
   /// Values must be numeric.
   template <typename C>
-  emp::sfinae_decoy<double, typename C::value_type> 
+  emp::sfinae_decoy<double, typename C::value_type>
   Mean(C & elements) {
     return (double)Sum(elements)/elements.size();
+  }
+
+  template <typename C>
+  emp::sfinae_decoy<double, typename C::value_type>
+  Median(C elements) {
+    Sort(elements);
+    if (elements.size() % 2 == 1) {
+      return elements[elements.size() / 2];
+    } else {
+      return (elements[elements.size() / 2 - 1] + elements[elements.size() / 2])/2.0;
+    }
   }
 
   /// Calculate the standard deviation of the values in a container
   /// If values are pointers, they will be automatically de-referenced
   /// Values must be numeric.
   template <typename C>
-  emp::sfinae_decoy<double, typename C::value_type> 
+  emp::sfinae_decoy<double, typename C::value_type>
   StandardDeviation(C & elements) {
     return sqrt(Variance(elements));
   }
@@ -203,7 +214,7 @@ namespace emp {
   /// Run the provided function on every member of a container and return the AVERAGE result.
   /// Function must return a scalar (i.e. numeric) type.
   template <typename C, typename RET_TYPE, typename ARG_TYPE>
-  typename std::enable_if<std::is_scalar<RET_TYPE>::value, double>::type 
+  typename std::enable_if<std::is_scalar<RET_TYPE>::value, double>::type
   MeanResult(std::function<RET_TYPE(ARG_TYPE)> & fun, C & elements){
     double cumulative_value = 0;
     double count = 0;

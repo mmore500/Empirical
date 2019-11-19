@@ -2132,6 +2132,7 @@ TEST_CASE("Test map_utils", "[tools]")
   REQUIRE( emp::Find(test_123, "0", "nothing") == "nothing" );
   REQUIRE( emp::Find(test_123, "1", "nothing") == "1" );
   REQUIRE( emp::FindRef(test_123, "1", "nothing") == "1" );
+
 }
 
 TEST_CASE("Test matchbin_utils", "[tools]")
@@ -4237,9 +4238,6 @@ TEST_CASE("Test MatchBin", "[tools]")
   REQUIRE( bin.GetVals(bin.Match(10, 2)) == emp::vector<std::string>{"bonjour"} );
   REQUIRE( bin.GetTags(bin.Match(10, 2)) == (emp::vector<int>{6}) );
 
-
-}
-
 }
 
 
@@ -5250,6 +5248,8 @@ TEST_CASE("Test string_utils", "[tools]")
     emp::join_on(strings(els, els + 3), std::string("+\0", 2).c_str())
   );
 
+  REQUIRE(emp::count(emp::to_string(test_arr), ' ') == 4);
+  REQUIRE(emp::join(emp::vector<size_t>({17,18,19}), ",") == "17,18,19");
 }
 
 
@@ -5470,6 +5470,7 @@ TEST_CASE("Test TypeTracker", "[tools]") {
 
 TEST_CASE("Test vector utils", "[tools]") {
   emp::vector<int> v1({6,2,5,1,3});
+  emp::vector<int> v2({7,6,7,1,7});
   emp::Sort(v1);
   REQUIRE(v1 == emp::vector<int>({1,2,3,5,6}));
   REQUIRE(emp::FindValue(v1, 3) == 2);
@@ -5478,6 +5479,8 @@ TEST_CASE("Test vector utils", "[tools]") {
   REQUIRE(!emp::Has(v1, 4));
   REQUIRE(emp::Product(v1) == 180);
   REQUIRE(emp::Slice(v1,1,3) == emp::vector<int>({2,3}));
+  REQUIRE(emp::Count(v1, 2) == 1);
+  REQUIRE(emp::Count(v2, 7) == 3);
 
   // Test handling vector-of-vectors.
   using vv_int_t = emp::vector< emp::vector< int > >;
