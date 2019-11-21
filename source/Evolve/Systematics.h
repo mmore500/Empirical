@@ -86,6 +86,10 @@ namespace emp {
       DataNode<double, data::Current, data::Range> fitness; /// This taxon's fitness (for assessing deleterious mutational steps)
       PHEN_TYPE phenotype; /// This taxon's phenotype (for assessing phenotypic change)
 
+      bool HasMutationType(const std::string & mut_name) const {
+        return emp::Has(mut_counts, mut_name);
+      }
+
       int GetMutationCount(const std::string & mut_name) const {
         emp_assert(emp::Has(mut_counts, mut_name), "Unknown mutation type", mut_name);
         return mut_counts.at(mut_name);
