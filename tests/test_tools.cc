@@ -2315,6 +2315,91 @@ TEST_CASE("Test matchbin_utils", "[tools]")
 
 TEST_CASE("Test MatchBin", "[tools]")
 {
+
+  // test baseline default N (1)
+  {
+  emp::Random rand(1);
+
+  emp::MatchBin<
+    std::string,
+    emp::AbsDiffMetric,
+    emp::RouletteSelector<>
+  >bin_rts(rand);
+
+  bin_rts.Put("hi", 0);
+  bin_rts.Put("salut", 0);
+  REQUIRE(bin_rts.Match(0).size() == 1);
+
+  emp::MatchBin<
+    std::string,
+    emp::AbsDiffMetric,
+    emp::ExpRouletteSelector<>
+  >bin_xrs(rand);
+
+  bin_xrs.Put("hi", 0);
+  bin_xrs.Put("salut", 0);
+  REQUIRE(bin_xrs.Match(0).size() == 1);
+
+  emp::MatchBin<
+    std::string,
+    emp::AbsDiffMetric,
+    emp::RankedSelector<>
+  >bin_rks(rand);
+
+  bin_rks.Put("hi", 0);
+  bin_rks.Put("salut", 0);
+  REQUIRE(bin_rks.Match(0).size() == 1);
+
+  }
+
+  // test setting different default N
+  {
+  emp::Random rand(1);
+
+  emp::MatchBin<
+    std::string,
+    emp::AbsDiffMetric,
+    emp::RouletteSelector<
+      std::ratio<-1,1>,
+      std::ratio<1000,1>,
+      std::ratio<1, 1>,
+      2
+    >
+  >bin_rts(rand);
+
+  bin_rts.Put("hi", 0);
+  bin_rts.Put("salut", 0);
+  REQUIRE(bin_rts.Match(0).size() == 2);
+
+  emp::MatchBin<
+    std::string,
+    emp::AbsDiffMetric,
+    emp::ExpRouletteSelector<
+      std::ratio<13, 10>,
+      std::ratio<1, 100>,
+      std::ratio<4, 1>,
+      std::ratio<4, 1>,
+      std::ratio<5, 4>,
+      2
+    >
+  >bin_xrs(rand);
+
+  bin_xrs.Put("hi", 0);
+  bin_xrs.Put("salut", 0);
+  REQUIRE(bin_xrs.Match(0).size() == 2);
+
+  emp::MatchBin<
+    std::string,
+    emp::AbsDiffMetric,
+    emp::RankedSelector<std::ratio<-1,1>, 2>
+  >bin_rks(rand);
+
+  bin_rks.Put("hi", 0);
+  bin_rks.Put("salut", 0);
+  REQUIRE(bin_rks.Match(0).size() == 2);
+
+  }
+
   {
     emp::Random rand(1);
   // We care about numbers less than 6 (<=5.99) away from what we're matching.
@@ -2324,7 +2409,7 @@ TEST_CASE("Test MatchBin", "[tools]")
   emp::MatchBin<
     std::string,
     emp::AbsDiffMetric,
-    emp::RankedSelector<std::ratio<214748364700+599,214748364700>>
+    emp::RankedSelector<std::ratio<214748364700+599,214748364700>, 2>
   > bin(rand);
 
   const size_t hi = bin.Put("hi", 1);
@@ -2338,8 +2423,11 @@ TEST_CASE("Test MatchBin", "[tools]")
 
   REQUIRE( bin.Size() == 5 );
 
-  REQUIRE( bin.GetVals(bin.Match(0, 0)) == emp::vector<std::string>{} );
-  REQUIRE( bin.GetTags(bin.Match(0, 0)) == emp::vector<int>{} );
+  // 0 = use Selector default n of 2
+  REQUIRE(
+    bin.GetVals(bin.Match(0, 0)) == (emp::vector<std::string>{"salut", "hi"})
+  );
+  REQUIRE( bin.GetTags(bin.Match(0, 0)) == (emp::vector<int>{0, 1}) );
 
   REQUIRE( bin.GetVals(bin.Match(0, 1)) == emp::vector<std::string>{"salut"} );
   REQUIRE( bin.GetTags(bin.Match(0, 1)) == emp::vector<int>{0} );
@@ -2382,7 +2470,10 @@ TEST_CASE("Test MatchBin", "[tools]")
   REQUIRE( bin.GetTags(bin.Match(0, 2)) == (emp::vector<int>{0, -4}) );
 
   bin.Put("hi", 1);
-  REQUIRE( bin.GetVals(bin.Match(0, 0)) == emp::vector<std::string>{} );
+  // 0 = use Selector default of 2
+  REQUIRE(
+    bin.GetVals(bin.Match(0, 0)) == (emp::vector<std::string>{"salut", "hi"})
+  );
   REQUIRE( bin.GetVals(bin.Match(0, 1)) == emp::vector<std::string>{"salut"} );
   REQUIRE(
     bin.GetVals(bin.Match(0, 2)) == (emp::vector<std::string>{"salut", "hi"})
@@ -2413,8 +2504,9 @@ TEST_CASE("Test MatchBin", "[tools]")
 
   REQUIRE( bin.Size() == 3 );
 
-  REQUIRE( bin.GetVals(bin.Match(0, 0)) == emp::vector<std::string>{} );
-  REQUIRE( bin.GetTags(bin.Match(0, 0)) == emp::vector<int>{} );
+  // 0 = use Selector default, which is 1
+  REQUIRE( bin.GetVals(bin.Match(0, 0)) == emp::vector<std::string>{"salut"} );
+  REQUIRE( bin.GetTags(bin.Match(0, 0)) == emp::vector<int>{0} );
 
   REQUIRE( bin.GetVals(bin.Match(0, 1)) == emp::vector<std::string>{"salut"} );
   REQUIRE( bin.GetTags(bin.Match(0, 1)) == emp::vector<int>{0} );
@@ -2432,8 +2524,9 @@ TEST_CASE("Test MatchBin", "[tools]")
   );
 
   bin.SetRegulator(bonjour, std::numeric_limits<double>::infinity());
-  REQUIRE( bin.GetVals(bin.Match(0, 0)) == emp::vector<std::string>{} );
-  REQUIRE( bin.GetTags(bin.Match(0, 0)) == emp::vector<int>{} );
+  // 0 = use Selector default, which is 1
+  REQUIRE( bin.GetVals(bin.Match(0, 0)) == emp::vector<std::string>{"salut"} );
+  REQUIRE( bin.GetTags(bin.Match(0, 0)) == emp::vector<int>{0} );
 
   REQUIRE( bin.GetVals(bin.Match(0, 1)) == emp::vector<std::string>{"salut"} );
   REQUIRE( bin.GetTags(bin.Match(0, 1)) == emp::vector<int>{0} );
@@ -2468,9 +2561,6 @@ TEST_CASE("Test MatchBin", "[tools]")
   REQUIRE( bin.GetVal(salut) == "salut" );
 
   REQUIRE( bin.Size() == 2 );
-
-  REQUIRE( bin.GetVals(bin.Match(0, 0)) == emp::vector<std::string>{} );
-  REQUIRE( bin.GetTags(bin.Match(0, 0)) == emp::vector<int>{} );
 
   auto res = bin.GetVals(bin.Match(0, 100000));
   const size_t count = std::count(std::begin(res), std::end(res), "salut");
@@ -2510,8 +2600,6 @@ TEST_CASE("Test MatchBin", "[tools]")
   REQUIRE( bin.GetVal(salut) == "salut" );
 
   REQUIRE( bin.Size() == 3 );
-  REQUIRE( bin.GetVals(bin.Match(0, 0)) == emp::vector<std::string>{} );
-  REQUIRE( bin.GetTags(bin.Match(0, 0)) == emp::vector<int>{} );
 
   auto res = bin.GetVals(bin.Match(0, 100000));
   const size_t count = std::count(std::begin(res), std::end(res), "salut");
@@ -2574,20 +2662,6 @@ TEST_CASE("Test MatchBin", "[tools]")
   REQUIRE( bin_hardskew.GetVal(salut2) == "salut" );
 
   REQUIRE( bin_hardskew.Size() == 2 );
-
-  REQUIRE(
-    bin_hardskew.GetVals(bin_hardskew.Match(0, 0)) == emp::vector<std::string>{}
-  );
-  REQUIRE(
-    bin_hardskew.GetTags(bin_hardskew.Match(0, 0)) == emp::vector<int>{}
-  );
-
-  REQUIRE(
-    bin_softskew.GetVals(bin_softskew.Match(0, 0)) == emp::vector<std::string>{}
-  );
-  REQUIRE(
-    bin_softskew.GetTags(bin_softskew.Match(0, 0)) == emp::vector<int>{}
-  );
 
 
   auto res_softskew = bin_softskew.GetVals(bin_softskew.Match(0, 100000));
@@ -2663,21 +2737,6 @@ TEST_CASE("Test MatchBin", "[tools]")
   REQUIRE( bin_hibase.GetVal(salut2) == "salut" );
 
   REQUIRE( bin_hibase.Size() == 2 );
-
-  REQUIRE(
-    bin_hibase.GetVals(bin_hibase.Match(0, 0)) == emp::vector<std::string>{}
-  );
-  REQUIRE(
-    bin_hibase.GetTags(bin_hibase.Match(0, 0)) == emp::vector<int>{}
-  );
-
-  REQUIRE(
-    bin_lobase.GetVals(bin_lobase.Match(0, 0)) == emp::vector<std::string>{}
-  );
-  REQUIRE(
-    bin_lobase.GetTags(bin_lobase.Match(0, 0)) == emp::vector<int>{}
-  );
-
 
   auto res_lobase = bin_lobase.GetVals(bin_lobase.Match(0, 100000));
   const size_t count_lobase = std::count(
@@ -2847,8 +2906,9 @@ TEST_CASE("Test MatchBin", "[tools]")
 
   emp::BitSet<32> bs0;//0000 0000
 
-  REQUIRE(bitBin.GetVals(bitBin.Match(bs0, 0)) == emp::vector<std::string>{});
-  REQUIRE(bitBin.GetTags(bitBin.Match(bs0, 0)) == emp::vector<emp::BitSet<32>>{});
+  // rely on MatchBin default, which is 1
+  REQUIRE(bitBin.GetVals(bitBin.Match(bs0, 0)) == emp::vector<std::string>{"one"});
+  REQUIRE(bitBin.GetTags(bitBin.Match(bs0, 0)) == emp::vector<emp::BitSet<32>>{bs1});
 
   REQUIRE(bitBin.GetVals(bitBin.Match(bs0, 1)) == emp::vector<std::string>{"one"});
   REQUIRE(bitBin.GetTags(bitBin.Match(bs0, 1)) == emp::vector<emp::BitSet<32>>{bs1});
@@ -2896,9 +2956,6 @@ TEST_CASE("Test MatchBin", "[tools]")
 
   REQUIRE(bitBin.Size() == 2);
 
-  REQUIRE(bitBin.GetVals(bitBin.Match(bs2, 0)) == emp::vector<std::string>{});
-  REQUIRE(bitBin.GetTags(bitBin.Match(bs2, 0)) == emp::vector<emp::BitSet<32>>{});
-
   auto res = bitBin.GetVals(bitBin.Match(bs2, 100000));
   const size_t count = std::count(std::begin(res), std::end(res), "elementary");
   REQUIRE(count > 50000);
@@ -2940,8 +2997,9 @@ TEST_CASE("Test MatchBin", "[tools]")
 
   REQUIRE( bin.Size() == 5 );
 
-  REQUIRE( bin.GetVals(bin.Match(0, 0)) == emp::vector<std::string>{} );
-  REQUIRE( bin.GetTags(bin.Match(0, 0)) == emp::vector<size_t>{} );
+  // 0 = use Selector default, which is 1
+  REQUIRE( bin.GetVals(bin.Match(0, 1)) == emp::vector<std::string>{"salut"} );
+  REQUIRE( bin.GetTags(bin.Match(0, 1)) == emp::vector<size_t>{0} );
 
   REQUIRE( bin.GetVals(bin.Match(0, 1)) == emp::vector<std::string>{"salut"} );
   REQUIRE( bin.GetTags(bin.Match(0, 1)) == emp::vector<size_t>{0} );
@@ -2996,9 +3054,6 @@ TEST_CASE("Test MatchBin", "[tools]")
 
   REQUIRE( bin.Size() == 2 );
 
-  REQUIRE( bin.GetVals(bin.Match(0, 0)) == emp::vector<std::string>{} );
-  REQUIRE( bin.GetTags(bin.Match(0, 0)) == emp::vector<int>{} );
-
   auto res = bin.GetVals(bin.Match(0, 100000));
   const size_t count = std::count(std::begin(res), std::end(res), "salut");
   REQUIRE( count > 50000);
@@ -3050,8 +3105,9 @@ TEST_CASE("Test MatchBin", "[tools]")
   emp::BitSet<8> bs2;//0000 0010
   bs2.SetUInt(0,2);
 
-  REQUIRE(bitBin.GetVals(bitBin.Match(bs2, 0)) == emp::vector<std::string>{});
-  REQUIRE(bitBin.GetTags(bitBin.Match(bs2, 0)) == emp::vector<emp::BitSet<8>>{});
+  // 0 = use Selector default, which is 1
+  REQUIRE(bitBin.GetVals(bitBin.Match(bs2, 1)) == emp::vector<std::string>{"one"});
+  REQUIRE(bitBin.GetTags(bitBin.Match(bs2, 1)) == emp::vector<emp::BitSet<8>>{bs1});
 
   REQUIRE(bitBin.GetVals(bitBin.Match(bs2, 1)) == emp::vector<std::string>{"one"});
   REQUIRE(bitBin.GetTags(bitBin.Match(bs2, 1)) == emp::vector<emp::BitSet<8>>{bs1});
@@ -3113,8 +3169,9 @@ TEST_CASE("Test MatchBin", "[tools]")
 
   REQUIRE (bitBin64.Size() == 3);
 
-  REQUIRE(bitBin64.GetVals(bitBin64.Match(bs1, 0)) == emp::vector<std::string>{});
-  REQUIRE(bitBin64.GetTags(bitBin64.Match(bs1, 0)) == emp::vector<emp::BitSet<64>>{});
+  // 0 = use Selector default, which is 1
+  REQUIRE(bitBin64.GetVals(bitBin64.Match(bs9, 0)) == (emp::vector<std::string> {"nine"}));
+  REQUIRE(bitBin64.GetTags(bitBin64.Match(bs9, 0)) == (emp::vector<emp::BitSet<64>> {bs9}));
 
   REQUIRE(bitBin64.GetVals(bitBin64.Match(bs9, 5)) == (emp::vector<std::string> {"nine","one","seven"}));
   REQUIRE(bitBin64.GetTags(bitBin64.Match(bs9, 5)) == (emp::vector<emp::BitSet<64>> {bs9, bs1, bs7}));
@@ -3152,8 +3209,9 @@ TEST_CASE("Test MatchBin", "[tools]")
   emp::BitSet<8> bs2;//0000 0010
   bs2.SetUInt(0,2);
 
-  REQUIRE(bitBin.GetVals(bitBin.Match(bs2, 0)) == emp::vector<std::string>{});
-  REQUIRE(bitBin.GetTags(bitBin.Match(bs2, 0)) == emp::vector<emp::BitSet<8>>{});
+  // 0 = use Selector default, which is 1
+  REQUIRE(bitBin.GetVals(bitBin.Match(bs2, 0)) == emp::vector<std::string>{"one"});
+  REQUIRE(bitBin.GetTags(bitBin.Match(bs2, 0)) == emp::vector<emp::BitSet<8>>{bs1});
 
   REQUIRE(bitBin.GetVals(bitBin.Match(bs2, 1)) == emp::vector<std::string>{"one"});
   REQUIRE(bitBin.GetTags(bitBin.Match(bs2, 1)) == emp::vector<emp::BitSet<8>>{bs1});
@@ -4211,8 +4269,9 @@ TEST_CASE("Test MatchBin", "[tools]")
 
   REQUIRE( bin.Size() == 5 );
 
-  REQUIRE( bin.GetVals(bin.Match(0, 0)) == emp::vector<std::string>{} );
-  REQUIRE( bin.GetTags(bin.Match(0, 0)) == emp::vector<int>{} );
+  // 0 = use Selector default, which is 1
+  REQUIRE( bin.GetVals(bin.Match(0, 0)) == emp::vector<std::string>{"salut"} );
+  REQUIRE( bin.GetTags(bin.Match(0, 0)) == emp::vector<int>{0} );
 
   REQUIRE( bin.GetVals(bin.Match(0, 1)) == emp::vector<std::string>{"salut"} );
   REQUIRE( bin.GetTags(bin.Match(0, 1)) == emp::vector<int>{0} );
@@ -4606,30 +4665,43 @@ TEST_CASE("Test NullStream", "[tools]")
 
 TEST_CASE("Test random", "[tools]")
 {
-  // test over a consistent set of seeds
-  for(int s = 1; s < 102; ++s) {
 
-  REQUIRE(s > 0);
+  std::unordered_map<std::string, std::pair<size_t, size_t>> n_fails;
+
+  // test over a consistent set of seeds
+  for(int s = 1; s < 251; ++s) {
+
+  REQUIRE(s > 0); // tests should be replicable
   emp::Random rng(s);
 
-  // Test GetDouble with the law of large numbers.
-  emp::vector<int> val_counts(10);
-  for (size_t i = 0; i < val_counts.size(); i++) val_counts[i] = 0;
-
-  const size_t num_tests = 150000;
+  // HERE'S THE MATH
+  // Var(Unif) = 1/12 (1 - 0)^2 = 1/12
+  // Std(Unif) = sqrt(1/12) = 0.28867513459481287
+  // by central limit theorem,
+  // Std(mean) =  Std(observation) / sqrt(num observs)
+  // Std(mean) = 0.28867513459481287 / sqrt(100000) = 0.0009128709291752767
+  // 0.005 / 0.0009128709291752767 = 5.4 standard deviations
+  // from WolframAlpha, 6.664E-8 of observations outside 5.4 standard deviations
+  // with 500 reps fail rate is 1 - (1 - 1E-8) ^ 500 = 5E-6
+  const size_t num_tests = 100000;
+  const double error_thresh = 0.005;
   const double min_value = 2.5;
   const double max_value = 8.7;
+
   double total = 0.0;
+
   for (size_t i = 0; i < num_tests; i++) {
-    const double cur_value = rng.GetDouble(min_value, max_value);
+    const double cur_value = (
+      (rng.GetDouble(min_value, max_value) - min_value)
+      / (max_value - min_value)
+    );
     total += cur_value;
-    val_counts[(size_t) cur_value]++;
   }
 
   {
-    const double expected_mean = (min_value + max_value) / 2.0;
-    const double min_threshold = (expected_mean*0.995);
-    const double max_threshold = (expected_mean*1.005);
+    const double expected_mean = 0.5;
+    const double min_threshold = (expected_mean-error_thresh);
+    const double max_threshold = (expected_mean+error_thresh);
     double mean_value = total/(double) num_tests;
 
     REQUIRE(mean_value > min_threshold);
@@ -4637,23 +4709,22 @@ TEST_CASE("Test random", "[tools]")
   }
 
   // Test GetInt
-  for (size_t i = 0; i < val_counts.size(); i++) val_counts[i] = 0;
   total = 0.0;
-
   for (size_t i = 0; i < num_tests; i++) {
-    const size_t cur_value = rng.GetUInt(min_value, max_value);
+    const size_t cur_value = rng.GetInt(min_value, max_value);
     total += cur_value;
-    val_counts[cur_value]++;
   }
 
   {
-    const double expected_mean = (double) (((int) min_value) + ((int) max_value) - 1) / 2.0;
+    const double expected_mean = static_cast<double>(
+      static_cast<int>(min_value) + static_cast<int>(max_value) - 1
+    ) / 2.0;
     const double min_threshold = (expected_mean*0.995);
     const double max_threshold = (expected_mean*1.005);
     double mean_value = total/(double) num_tests;
 
-    REQUIRE(mean_value > min_threshold);
-    REQUIRE(mean_value < max_threshold);
+    n_fails["GetInt"].first += !(mean_value > min_threshold);
+    n_fails["GetInt"].second += !(mean_value < max_threshold);
   }
 
   // Test GetUInt()
@@ -4661,24 +4732,35 @@ TEST_CASE("Test random", "[tools]")
   total = 0.0;
   for (size_t i = 0; i < num_tests; i++) {
     const uint32_t cur_value = rng.GetUInt();
-    total += cur_value;
+    total += (
+      cur_value / static_cast<double>(std::numeric_limits<uint32_t>::max())
+    );
     uint32_draws.push_back(cur_value);
   }
 
   {
-  const double expected_mean = ((double)std::numeric_limits<uint32_t>::max())/2.0;
-  const double min_threshold = (expected_mean*0.995);
-  const double max_threshold = (expected_mean*1.005);
-  double mean_value = total/(double) num_tests;
+  const double expected_mean = 0.5;
+  const double min_threshold = expected_mean-error_thresh;
+  const double max_threshold = expected_mean+error_thresh;
+  const double mean_value = total / static_cast<double>(num_tests);
+  // std::cout << mean_value * 1000 << std::endl;
 
-  REQUIRE(mean_value > min_threshold);
-  REQUIRE(mean_value < max_threshold);
+  n_fails["GetUInt"].first += !(mean_value > min_threshold);
+  n_fails["GetUInt"].second += !(mean_value < max_threshold);
   // ensure that all bits are set at least once and unset at least once
-  REQUIRE(std::numeric_limits<uint32_t>::max() == std::accumulate(uint32_draws.begin(),uint32_draws.end(),(uint32_t)0,
-    [](uint32_t accumulator, uint32_t val){ return accumulator | val; })
+  REQUIRE(std::numeric_limits<uint32_t>::max() == std::accumulate(
+      std::begin(uint32_draws),
+      std::end(uint32_draws),
+      static_cast<uint32_t>(0),
+      [](uint32_t accumulator, uint32_t val){ return accumulator | val; }
+    )
   );
-  REQUIRE(std::numeric_limits<uint32_t>::max() == std::accumulate(uint32_draws.begin(),uint32_draws.end(),(uint32_t)0,
-    [](uint32_t accumulator, uint32_t val){ return accumulator | (~val); })
+  REQUIRE(std::numeric_limits<uint32_t>::max() == std::accumulate(
+      std::begin(uint32_draws),
+      std::end(uint32_draws),
+      static_cast<uint32_t>(0),
+      [](uint32_t accumulator, uint32_t val){ return accumulator | (~val); }
+    )
   );
   }
 
@@ -4691,30 +4773,35 @@ TEST_CASE("Test random", "[tools]")
 
   total = 0.0;
   for (size_t i = 0; i < num_tests; i++) {
-    total += randfill_draws[i];
+    total += (
+      randfill_draws[i]
+      / static_cast<double>(std::numeric_limits<uint32_t>::max())
+    );
   }
 
   {
-  const double expected_mean = ((double)std::numeric_limits<uint32_t>::max())/2.0;
-  const double min_threshold = (expected_mean*0.995);
-  const double max_threshold = (expected_mean*1.005);
-  double mean_value = total/(double) num_tests;
+  const double expected_mean = 0.5;
+  const double min_threshold = expected_mean-error_thresh;
+  const double max_threshold = expected_mean+error_thresh;
+  double mean_value = total / static_cast<double>(num_tests);
 
-  REQUIRE(mean_value > min_threshold);
-  REQUIRE(mean_value < max_threshold);
+  n_fails["RandFill"].first += !(mean_value > min_threshold);
+  n_fails["RandFill"].second += !(mean_value < max_threshold);
   // ensure that all bits are set at least once and unset at least once
   REQUIRE(std::numeric_limits<uint32_t>::max() == std::accumulate(
-    std::begin(randfill_draws),
-    std::end(randfill_draws),
-    (uint32_t)0,
-    [](uint32_t accumulator, uint32_t val){ return accumulator | val; }
-  ));
+      std::begin(randfill_draws),
+      std::end(randfill_draws),
+      (uint32_t)0,
+      [](uint32_t accumulator, uint32_t val){ return accumulator | val; }
+    )
+  );
   REQUIRE(std::numeric_limits<uint32_t>::max() == std::accumulate(
-    std::begin(randfill_draws),
-    std::end(randfill_draws),
-    (uint32_t)0,
-    [](uint32_t accumulator, uint32_t val){ return accumulator | (~val); }
-  ));
+      std::begin(randfill_draws),
+      std::end(randfill_draws),
+      static_cast<uint32_t>(0),
+      [](uint32_t accumulator, uint32_t val){ return accumulator | (~val); }
+    )
+  );
   }
 
   // Test GetUInt64
@@ -4723,62 +4810,49 @@ TEST_CASE("Test random", "[tools]")
   double total2 = 0.0;
   for (size_t i = 0; i < num_tests; i++) {
     const uint64_t cur_value = rng.GetUInt64();
-    total += static_cast<uint32_t>(cur_value);
-    total2 += cur_value >> 32;
     uint64_draws.push_back(cur_value);
+
+    uint32_t temp;
+    std::memcpy(&temp, &cur_value, sizeof(temp));
+    total += temp / static_cast<double>(std::numeric_limits<uint32_t>::max());
+    std::memcpy(
+      &temp,
+      reinterpret_cast<const unsigned char *>(&cur_value) + sizeof(temp),
+      sizeof(temp)
+    );
+    total2 += temp / static_cast<double>(std::numeric_limits<uint32_t>::max());
+
   }
 
   {
-  const double expected_mean = ((double)std::numeric_limits<uint32_t>::max())/2.0;
-  const double min_threshold = (expected_mean*0.995);
-  const double max_threshold = (expected_mean*1.005);
-  double mean_value = total/(double)num_tests; // values were divided by num_tests when added
+  const double expected_mean = 0.5;
+  const double min_threshold = expected_mean-error_thresh;
+  const double max_threshold = expected_mean+error_thresh;
 
-  REQUIRE(mean_value > min_threshold);
-  REQUIRE(mean_value < max_threshold);
-  double mean_value2 = total2/(double)num_tests; // values were divided by num_tests when added
+  const double mean_value = total / static_cast<double>(num_tests);
+  n_fails["GetUInt64"].first += !(mean_value > min_threshold);
+  n_fails["GetUInt64"].second += !(mean_value < max_threshold);
 
-  REQUIRE(mean_value2 > min_threshold);
-  REQUIRE(mean_value2 < max_threshold);
+  const double mean_value2 = total2 / static_cast<double>(num_tests);
+  n_fails["GetUInt64"].first += !(mean_value2 > min_threshold);
+  n_fails["GetUInt64"].second += !(mean_value2 < max_threshold);
+
   // ensure that all bits are set at least once and unset at least once
-  REQUIRE(std::numeric_limits<uint64_t>::max() == std::accumulate(uint64_draws.begin(),uint64_draws.end(),(uint64_t)0,
-    [](uint64_t accumulator, uint64_t val){ return accumulator | val; })
+  REQUIRE(std::numeric_limits<uint64_t>::max() == std::accumulate(
+      std::begin(uint64_draws),
+      std::end(uint64_draws),
+      static_cast<uint64_t>(0),
+      [](uint64_t accumulator, uint64_t val){ return accumulator | val; }
+    )
   );
-  REQUIRE(std::numeric_limits<uint64_t>::max() == std::accumulate(uint64_draws.begin(),uint64_draws.end(),(uint64_t)0,
-    [](uint64_t accumulator, uint64_t val){ return accumulator | (~val); })
+  REQUIRE(std::numeric_limits<uint64_t>::max() == std::accumulate(
+      std::begin(uint64_draws),
+      std::end(uint64_draws),
+      static_cast<uint64_t>(0),
+      [](uint64_t accumulator, uint64_t val){ return accumulator | (~val); }
+    )
   );
-  }
 
-  // Test GetUInt64Fast
-  emp::vector<uint64_t> uint64fast_draws;
-  total = 0.0;
-  total2 = 0.0;
-  for (size_t i = 0; i < num_tests; i++) {
-    const uint64_t cur_value = rng.GetUInt64Fast();
-    total += static_cast<uint32_t>(cur_value);
-    total2 += cur_value >> 32;
-    uint64fast_draws.push_back(cur_value);
-  }
-
-  {
-  const double expected_mean = ((double)std::numeric_limits<uint32_t>::max())/2.0;
-  const double min_threshold = (expected_mean*0.995);
-  const double max_threshold = (expected_mean*1.005);
-  double mean_value = total / (double)num_tests;
-
-  REQUIRE(mean_value > min_threshold);
-  REQUIRE(mean_value < max_threshold);
-  double mean_value2 = total2 / (double)num_tests;
-
-  REQUIRE(mean_value2 > min_threshold);
-  REQUIRE(mean_value2 < max_threshold);
-  // ensure that all bits are set at least once and unset at least once
-  REQUIRE(std::numeric_limits<uint64_t>::max() == std::accumulate(uint64fast_draws.begin(),uint64fast_draws.end(),(uint64_t)0,
-    [](uint64_t accumulator, uint64_t val){ return accumulator | val; })
-  );
-  REQUIRE(std::numeric_limits<uint64_t>::max() == std::accumulate(uint64fast_draws.begin(),uint64fast_draws.end(),(uint64_t)0,
-    [](uint64_t accumulator, uint64_t val){ return accumulator | (~val); })
-  );
   }
 
   // Test P
@@ -4798,6 +4872,12 @@ TEST_CASE("Test random", "[tools]")
   emp::vector<size_t> choices = Choose(rng,100,10);
 
   REQUIRE(choices.size() == 10);
+
+  }
+
+  for (const auto & [k, v] : n_fails) {
+    // std::cout << k << ": " << v.first << ", " << v.second << std::endl;
+    REQUIRE(v.first + v.second == 0);
   }
 }
 

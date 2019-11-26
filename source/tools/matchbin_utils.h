@@ -23,6 +23,7 @@
 #include <string>
 #include <tuple>
 #include <array>
+#include <utility>
 
 #include "tools/Binomial.h"
 
@@ -654,12 +655,28 @@ namespace emp {
   };
 
   struct RouletteCacheState : public CacheStateBase{
+
+    emp::IndexMap indexMap;
+    emp::vector<size_t> uids;
+    emp::Random rand;
+    size_t default_n;
+
     RouletteCacheState() = default;
-    RouletteCacheState(emp::IndexMap& im, emp::vector<size_t>& ids, emp::Random& r)
-      : indexMap(im)
+    RouletteCacheState(
+      emp::IndexMap& im,
+      emp::vector<size_t>& ids,
+      emp::Random& r,
+      const size_t default_n_
+    ) : indexMap(im)
       , uids(ids)
-      , rand(r){}
+      , rand(r)
+      , default_n(default_n_)
+    { ; }
+
     std::optional<emp::vector<size_t>> operator()(size_t n) override {
+
+      if (n == 0) n = default_n;
+
       // don't perform a lookup into an empty IndexMap, that's a segfault
       // double braces: an empty vector inside an optional
       if (!indexMap.GetSize()) return std::optional<emp::vector<size_t>>{
@@ -682,26 +699,32 @@ namespace emp {
       return res;
     }
 
-    emp::IndexMap indexMap;
-    emp::vector<size_t> uids;
-    emp::Random rand;
   };
 
   struct RankedCacheState: public CacheStateBase {
 
+    emp::vector<size_t> uids;
+    size_t requestSize;
+    size_t default_n;
+
     RankedCacheState() = default;
-    RankedCacheState(emp::vector<size_t>::iterator begin, size_t back, size_t n):
-        uids(emp::vector<size_t>(begin, begin + back))
-      , requestSize(n){}
+    RankedCacheState(
+      emp::vector<size_t>::iterator begin,
+      size_t back,
+      size_t n,
+      size_t default_n_
+    ) : uids(emp::vector<size_t>(begin, begin + back))
+      , requestSize(n)
+      , default_n(default_n_)
+    { ; }
 
     std::optional<emp::vector<size_t>> operator()(size_t n) override {
+      if (n == 0) n = default_n;
       if (n > requestSize){ return std::nullopt; }
       if (n >= uids.size()){ return uids; }
       return emp::vector<size_t>(uids.begin(), uids.begin()+n);
     }
 
-    emp::vector<size_t> uids;
-    size_t requestSize;
   };
 
   /// Abstract base class for selectors
@@ -717,7 +740,10 @@ namespace emp {
   };
 
   /// Returns matches within the threshold ThreshRatio sorted by match quality.
-  template<typename ThreshRatio = std::ratio<-1,1>> // neg numerator means +infy
+  template<
+    typename ThreshRatio = std::ratio<-1,1>, // neg numerator means +infy
+    size_t DefaultN = 1
+  >
   struct RankedSelector : public SelectorBase<RankedCacheState> {
 
     RankedSelector(emp::Random&){ ; }
@@ -731,6 +757,9 @@ namespace emp {
         ThreshRatio::num,
         "/",
         ThreshRatio::den,
+        ", "
+        "DefaultN: ",
+        DefaultN,
         ")"
       );
     }
@@ -740,6 +769,8 @@ namespace emp {
       const std::unordered_map<size_t, double>& scores,
       size_t n
     ) override {
+
+      if (n == 0) n = DefaultN;
 
       emp::vector<size_t> uids(uids_);
 
@@ -769,7 +800,7 @@ namespace emp {
         ) ++back;
 
 
-      return RankedCacheState(uids.begin(), back, n);
+      return RankedCacheState(uids.begin(), back, n, DefaultN);
     }
 
   };
@@ -787,7 +818,8 @@ namespace emp {
   template<
     typename ThreshRatio = std::ratio<-1, 1>,// we treat neg numerator as +infty
     typename SkewRatio = std::ratio<1, 10>,
-    typename MaxBaselineRatio = std::ratio<1, 1>// treat neg numerator as +infty
+    typename MaxBaselineRatio = std::ratio<1, 1>,//treat neg numerator as +infty
+    size_t DefaultN = 1
   >
   struct RouletteSelector : public SelectorBase<RouletteCacheState> {
 
@@ -816,6 +848,9 @@ namespace emp {
         MaxBaselineRatio::num,
         "/",
         MaxBaselineRatio::den,
+        ", ",
+        "DefaultN: ",
+        DefaultN,
         ")"
       );
     }
@@ -825,6 +860,8 @@ namespace emp {
       const std::unordered_map<size_t, double>& scores,
       size_t n
     ) override {
+
+      if (n == 0) n = DefaultN;
 
       emp::vector<size_t> uids(uids_);
 
@@ -845,16 +882,22 @@ namespace emp {
         : ((double) MaxBaselineRatio::num) / MaxBaselineRatio::den
       );
 
-      // partition by thresh
-      size_t partition = 0;
-      double min_score = std::numeric_limits<double>::infinity();
-      for (size_t i = 0; i < uids.size(); ++i) {
-        emp_assert(scores.at(uids[i]) >= 0);
-        min_score = std::min(min_score, scores.at(uids[i]));
-        if (scores.at(uids[i]) <= thresh) {
-          std::swap(uids[i], uids[partition++]);
+      double min_score = std::min_element(
+        std::begin(scores),
+        std::end(scores),
+        [](const auto & a, const auto & b){
+          return a.second < b.second;
         }
-      }
+      )->second;
+
+      size_t partition = std::distance(
+        std::begin(uids),
+        std::partition(
+          std::begin(uids),
+          std::end(uids),
+          [&scores, thresh](size_t uid){ return scores.at(uid) <= thresh; }
+        )
+      );
 
       // skew relative to strongest match less than or equal to max_baseline
       // to take into account regulation...
@@ -871,7 +914,7 @@ namespace emp {
         match_index.Adjust(p, 1.0 / ( skew + scores.at(uids[p]) - baseline ));
       }
 
-      return RouletteCacheState(match_index, uids, rand);
+      return RouletteCacheState(match_index, uids, rand, DefaultN);
 
       /*
       emp::vector<size_t> res;
@@ -900,7 +943,8 @@ namespace emp {
     typename BRatio = std::ratio<1, 100>,
     typename CRatio = std::ratio<4, 1>,
     typename ZRatio = std::ratio<4, 1>,
-    typename MaxBaselineRatio = std::ratio<5, 4>// treat neg numerator as +infty
+    typename MaxBaselineRatio = std::ratio<5, 4>,//treat neg numerator as +infty
+    size_t DefaultN = 1
   >
   struct ExpRouletteSelector : public SelectorBase<RouletteCacheState> {
 
@@ -939,6 +983,9 @@ namespace emp {
         MaxBaselineRatio::num,
         "/",
         MaxBaselineRatio::den,
+        ", ",
+        "DefaultN: ",
+        DefaultN,
         ")"
       );
     }
@@ -948,6 +995,8 @@ namespace emp {
       const std::unordered_map<size_t, double>& scores,
       size_t n
     ) override {
+
+      if (n == 0) n = DefaultN;
 
       emp::vector<size_t> uids(uids_);
 
@@ -974,18 +1023,23 @@ namespace emp {
         : static_cast<double>(MaxBaselineRatio::num) / MaxBaselineRatio::den
       );
 
-      double min_score = scores.at(
-          std::min_element(
-            uids.begin(), 
-            uids.end(), 
-            [&scores](size_t a, size_t b){return scores.at(a)<scores.at(b);}
-            )
-          );
-      size_t partition = std::partition(uids.begin(), uids.end(), [thresh](size_t uid){emp_assert(uid>=0); return uid <= thresh;});
-      
-    
+      double min_score = std::min_element(
+        std::begin(scores),
+        std::end(scores),
+        [](const auto & a, const auto & b){
+          return a.second < b.second;
+        }
+      )->second;
 
-      
+      size_t partition = std::distance(
+        std::begin(uids),
+        std::partition(
+          std::begin(uids),
+          std::end(uids),
+          [&scores, thresh](size_t uid){ return scores.at(uid) <= thresh; }
+        )
+      );
+
       // skew relative to strongest match less than or equal to max_baseline
       // to take into account regulation...
       // (the default value of max_baseline is 1.0 because without
@@ -1007,7 +1061,7 @@ namespace emp {
         );
       }
 
-      return RouletteCacheState(match_index, uids, rand);
+      return RouletteCacheState(match_index, uids, rand, DefaultN);
 
     }
 
@@ -1038,5 +1092,84 @@ struct DynamicSelector : public SelectorBase<emp::vector<size_t>>{
 */
 
 }
+
+/// Abstract base class for regulators
+template<typename set_t_, typename adj_t_, typename view_t_>
+struct RegulatorBase {
+
+  using set_t = set_t_;
+  using adj_t = adj_t_;
+  using view_t = view_t_;
+
+  virtual ~RegulatorBase() {};
+  virtual bool Set(const set_t & set) = 0;
+  virtual bool Adj(const adj_t & set) = 0;
+  virtual double View() const = 0;
+  virtual double operator()(double raw_score) const = 0;
+  virtual std::string name() const = 0;
+
+};
+
+
+struct LinearRegulator : RegulatorBase<double, double, double> {
+
+  // >1.0 downregulated
+  // 1.0 neutral
+  // <1.0 upgregulated
+  // must be >=0.0
+  double state;
+
+  LinearRegulator() : state(1.0) {}
+
+  /// Apply regulation to a raw match score.
+  double operator()(const double raw_score) const override {
+    return state * raw_score + state;
+  }
+
+  /// TODO should we adopt a convention that's consistent across regulators?
+
+  /// A value between zero and one upregulates the item,
+  /// a value of exactly one is neutral,
+  /// and a value greater than one downregulates the item.
+  bool Set(const double & set) override {
+    // regulator value must be positive
+    // return whether regulator value changed
+    // (i.e., we need to purge the cache)
+    return std::exchange(state, std::abs(set)) != std::abs(set);
+  }
+
+  /// A negative value upregulates the item,
+  /// a value of exactly zero is neutral
+  /// and a postive value the item.
+  bool Adj(const double & amt) override {
+    // regulator value must be positive
+    state = std::max(0.0, state + amt);
+    // return whether regulator value changed
+    // (i.e., we need to purge the cache)
+    return amt != 0.0;
+  }
+
+  /// Return a double representing the state of the regulator.
+  double View() const override {
+    return state;
+  }
+
+  std::string name() const override {
+    return "Linear Regulator";
+  }
+
+  bool operator!=(const LinearRegulator & other) const {
+    return state != other.state;
+  }
+
+  template <class Archive>
+  void serialize( Archive & ar )
+  {
+    ar(
+      CEREAL_NVP(state)
+    );
+  }
+
+};
 
 #endif
