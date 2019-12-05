@@ -98,10 +98,16 @@ namespace emp {
    *      * Each event type has a registered event handler that gets called to handle a dispatched
    *        event.
    */
-  template<size_t AFFINITY_WIDTH, typename TRAIT_T=emp::vector<double>
-    , typename MATCHBIN_T=emp::MatchBin<size_t, emp::HammingMetric<16>, emp::RankedSelector<std::ratio<16+8, 16>>>
+  template<
+    size_t AFFINITY_WIDTH,
+    typename TRAIT_T=emp::vector<double>,
+    typename MATCHBIN_T=emp::MatchBin<
+      size_t,
+      emp::HammingMetric<AFFINITY_WIDTH>,
+      emp::RankedSelector<std::ratio<1,2>>,
+      emp::MultiplicativeCountdownRegulator<>
     >
-  class EventDrivenGP_AW {
+  > class EventDrivenGP_AW {
   public:
     /// Maximum number of instruction arguments. Currently hardcoded. At some point, will make flexible.
     static constexpr size_t MAX_INST_ARGS = 3;
@@ -372,7 +378,7 @@ namespace emp {
         fun_matchbin_refresh = fun;
       }
 
-      const affinity_t & GetAffinity() { return affinity; }
+      const affinity_t & GetAffinity() const { return affinity; }
 
       void SetAffinity(const affinity_t & aff) {
         if (affinity != aff) {
@@ -423,6 +429,13 @@ namespace emp {
       { ; }
       Program(const Program &) = default;
 
+      auto begin() { return std::begin(program); }
+      auto end() { return std::end(program); }
+
+      auto cbegin() const { return std::cbegin(program); }
+      auto cend() const { return std::cend(program); }
+
+
       void Clear() {
         program.clear();
       }
@@ -462,28 +475,38 @@ namespace emp {
 
       void SetProgram(const program_t & _program) {
         program = _program;
+        for (auto & f : program) f.SetMatchBinRefreshFun(fun_matchbin_refresh);
         fun_matchbin_refresh();
       }
 
       void PushFunction(const Function & _function) {
         program.emplace_back(_function);
-        program.back().SetMatchBinRefreshFun(
-          [this](){ this->fun_matchbin_refresh(); }
-        );
+        program.back().SetMatchBinRefreshFun(fun_matchbin_refresh);
         fun_matchbin_refresh();
       }
 
       void DeleteFunction(const size_t fID) {
-        program[fID] = program[GetSize() - 1];
-        program.pop_back();
+        emp_assert(fID < GetSize());
+
+        // adapted from https://stackoverflow.com/questions/34994311/stdvectorerase-vs-swap-and-pop
+        if (GetSize() > 1) {
+          std::iter_swap(
+            std::next(std::begin(program), fID),
+            std::prev(std::end(program))
+          );
+          program.pop_back();
+        } else {
+          program.clear();
+        }
         fun_matchbin_refresh();
+
       }
 
       void PushFunction(const affinity_t & _aff=affinity_t(), const inst_seq_t & _seq=inst_seq_t()) {
         program.emplace_back(
           _aff,
           _seq,
-          [this](){ this->fun_matchbin_refresh(); }
+          fun_matchbin_refresh
         );
         fun_matchbin_refresh();
       }
@@ -646,7 +669,7 @@ namespace emp {
         for (size_t fID = 0; fID < GetSize(); fID++) {
           // Print out function name (affinity).
           os << "Fn-" << fID << " ";
-          program[fID].affinity.Print(os);
+          program[fID].GetAffinity().Print(os);
           os << ":\n";
           int depth = 0;
           for (size_t i = 0; i < program[fID].GetSize(); i++) {
@@ -672,7 +695,7 @@ namespace emp {
         for (size_t fID = 0; fID < GetSize(); fID++) {
           // Print out function name (affinity).
           os << "Fn-";
-          program[fID].affinity.Print(os);
+          program[fID].GetAffinity().Print(os);
           os << ":\n";
           int depth = 0;
           for (size_t i = 0; i < program[fID].GetSize(); i++) {
@@ -1793,24 +1816,21 @@ namespace emp {
     /// Description: Sets the regulator of a tag in the matchbin.
     static void Inst_SetRegulator(EventDrivenGP_t & hw, const inst_t & inst){
       const State & state = hw.GetCurState();
-      emp::vector<size_t> best_fun = hw.GetMatchBin().MatchRaw(
-        inst.affinity,
-        1
+
+      const emp::vector<size_t> targets = hw.GetMatchBin().MatchRaw(
+        inst.affinity
       );
 
-      if (best_fun.size() == 0){ return; }
-
-      double regulator = state.GetLocal(inst.args[0]);
-      if(regulator < 0){
-        regulator = std::max(regulator, std::numeric_limits<double>::min());
-        regulator /= std::numeric_limits<double>::min();
-      }else{
-        regulator += 1.0;
+      for (const auto & target : targets) {
+        hw.GetMatchBin().SetRegulator(
+          target,
+          state.GetLocal(inst.args[0])
+        );
+        hw.GetMatchBin().DecayRegulator(
+          target,
+          -state.GetLocal(inst.args[1]) // 0 is a no-op
+        );
       }
-      hw.GetMatchBin().SetRegulator(best_fun[0], regulator);
-
-      const size_t dur = 2 + state.GetLocal(inst.args[1]);
-      hw.GetMatchBin().GetVal(best_fun[0]) = dur;
 
     }
 
@@ -1819,50 +1839,50 @@ namespace emp {
     /// Description: Sets the regulator of the currently executing function.
     static void Inst_SetOwnRegulator(EventDrivenGP_t & hw, const inst_t & inst){
       const State & state = hw.GetCurState();
-      double regulator = state.GetLocal(inst.args[0]);
-      if(regulator < 0){
-        regulator = std::max(regulator, std::numeric_limits<double>::min());
-        regulator /= std::numeric_limits<double>::min();
-      }else{
-        regulator += 1.0;
-      }
-      hw.GetMatchBin().SetRegulator(state.GetFP(), regulator);
 
-      const size_t dur = 2 + state.GetLocal(inst.args[1]);
-      hw.GetMatchBin().GetVal(state.GetFP()) = dur;
+      const size_t target = state.GetFP();
+
+      hw.GetMatchBin().SetRegulator(
+        target,
+        state.GetLocal(inst.args[0])
+      );
+      hw.GetMatchBin().DecayRegulator(
+        target,
+        -state.GetLocal(inst.args[1]) // 0 is a no-op
+      );
 
     }
 
     /// Non-default instruction: AdjRegulator
     /// Number of arguments: 3
     /// Description: adjusts the regulator of a tag in the matchbin
-    /// towards a target.
+    /// towards a goal.
     static void Inst_AdjRegulator(EventDrivenGP_t & hw, const inst_t & inst){
       const State & state = hw.GetCurState();
-      emp::vector<size_t> best_fun = hw.GetMatchBin().MatchRaw(
-        inst.affinity,
-        1
-      );
-      if (!best_fun.size()) return;
 
-      double target = state.GetLocal(inst.args[0]);
-      if(target < 0) {
-        target = std::max(target, std::numeric_limits<double>::min());
-        target /= std::numeric_limits<double>::min();
-      } else {
-        target += 1.0;
+      const double goal = state.GetLocal(inst.args[0]);
+      const double budge = emp::Mod(
+        state.GetLocal(inst.args[1]) + 1.0,
+        5.0
+      ) / 5.0;
+
+      const emp::vector<size_t> targets = hw.GetMatchBin().MatchRaw(
+        inst.affinity
+      );
+      for (const auto & target : targets) {
+
+        const double cur = hw.GetMatchBin().ViewRegulator(target);
+
+        hw.GetMatchBin().SetRegulator(
+          target,
+          goal * budge + cur * (1 - budge)
+        );
+        hw.GetMatchBin().DecayRegulator(
+          target,
+          -state.GetLocal(inst.args[2]) // 0 is a no-op
+        );
+
       }
-
-      const double budge = emp::Mod(state.GetLocal(inst.args[1])+0.2, 1.0);
-      const double cur = hw.GetMatchBin().ViewRegulator(best_fun[0]);
-
-      hw.GetMatchBin().SetRegulator(
-        best_fun[0],
-        target * budge + cur * (1 - budge)
-      );
-
-      const size_t dur = 2 + state.GetLocal(inst.args[2]);
-      hw.GetMatchBin().GetVal(best_fun[0]) = dur;
 
     }
 
@@ -1873,24 +1893,22 @@ namespace emp {
     static void Inst_AdjOwnRegulator(EventDrivenGP_t & hw, const inst_t & inst){
       const State & state = hw.GetCurState();
 
-      double target = state.GetLocal(inst.args[0]);
-      if(target < 0) {
-        target = std::max(target, std::numeric_limits<double>::min());
-        target /= std::numeric_limits<double>::min();
-      } else {
-        target += 1.0;
-      }
-
-      const double budge = emp::Mod(state.GetLocal(inst.args[1])+0.2, 1.0);
-      const double cur = hw.GetMatchBin().ViewRegulator(state.GetFP());
+      const size_t target = state.GetFP();
+      const double goal = state.GetLocal(inst.args[0]);
+      const double budge = emp::Mod(
+        state.GetLocal(inst.args[1]) + 1.0,
+        5.0
+      ) / 5.0;
+      const double cur = hw.GetMatchBin().ViewRegulator(target);
 
       hw.GetMatchBin().SetRegulator(
-        state.GetFP(),
-        target * budge + cur * (1 - budge)
+        target,
+        goal * budge + cur * (1 - budge)
       );
-
-      const size_t dur = 2 + state.GetLocal(inst.args[2]);
-      hw.GetMatchBin().GetVal(state.GetFP()) = dur;
+      hw.GetMatchBin().DecayRegulator(
+        target,
+        -state.GetLocal(inst.args[2]) // 0 is a no-op
+      );
 
     }
 
@@ -1900,14 +1918,34 @@ namespace emp {
     /// regulator of a tag in the matchbin.
     static void Inst_ExtRegulator(EventDrivenGP_t & hw, const inst_t & inst){
       const State & state = hw.GetCurState();
-      emp::vector<size_t> best_fun = hw.GetMatchBin().MatchRaw(
-        inst.affinity,
-        1
-      );
-      if (!best_fun.size()) return;
 
-      const size_t dur = 1 + state.GetLocal(inst.args[0]);
-      hw.GetMatchBin().GetVal(best_fun[0]) += dur;
+      const emp::vector<size_t> targets = hw.GetMatchBin().MatchRaw(
+        inst.affinity
+      );
+
+      for (const auto & target : targets) {
+        hw.GetMatchBin().DecayRegulator(
+          target,
+          -state.GetLocal(inst.args[1]) // 0 is a no-op
+        );
+      }
+
+    }
+
+
+    /// Non-default instruction: ExtOwnRegulator
+    /// Number of arguments: 1
+    /// Description: extends the decay counter of a
+    /// regulator of a tag in the matchbin.
+    static void Inst_ExtOwnRegulator(EventDrivenGP_t & hw, const inst_t & inst){
+      const State & state = hw.GetCurState();
+
+      const size_t target = state.GetFP();
+
+      hw.GetMatchBin().DecayRegulator(
+        target,
+        -state.GetLocal(inst.args[1]) // 0 is a no-op
+      );
 
     }
 
@@ -1917,14 +1955,13 @@ namespace emp {
     /// Description: senses the value of the regulator of another function.
     static void Inst_SenseRegulator(EventDrivenGP_t & hw, const inst_t & inst){
       State & state = hw.GetCurState();
-      emp::vector<size_t> best_fun = hw.GetMatchBin().MatchRaw(
-        inst.affinity,
-        1
+      const emp::vector<size_t> targets = hw.GetMatchBin().MatchRaw(
+        inst.affinity
       );
-      if (best_fun.size() == 1){
+      if (targets.size() == 1){
         state.SetLocal(
           inst.args[0],
-          hw.GetMatchBin().ViewRegulator(best_fun[0])
+          hw.GetMatchBin().ViewRegulator(targets[0])
         );
       }
     }
@@ -1932,11 +1969,15 @@ namespace emp {
     /// Non-default instruction: SenseOwnRegulator
     /// Number of arguments: 1
     /// Description: senses the value of the regulator the current function.
-    static void Inst_SenseOwnRegulator(EventDrivenGP_t & hw, const inst_t & inst){
+    static void Inst_SenseOwnRegulator(
+      EventDrivenGP_t & hw,
+      const inst_t & inst
+    ){
       State & state = hw.GetCurState();
+      const size_t target = state.GetFP();
       state.SetLocal(
         inst.args[0],
-        hw.GetMatchBin().ViewRegulator(state.GetFP())
+        hw.GetMatchBin().ViewRegulator(target)
       );
     }
 
