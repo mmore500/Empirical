@@ -1829,7 +1829,7 @@ namespace emp {
         );
         hw.GetMatchBin().DecayRegulator(
           target,
-          -state.GetLocal(inst.args[1]) // 0 is a no-op
+          -(state.GetLocal(inst.args[1])+1) // 0 is a no-op
         );
       }
 
@@ -1849,7 +1849,7 @@ namespace emp {
       );
       hw.GetMatchBin().DecayRegulator(
         target,
-        -state.GetLocal(inst.args[1]) // 0 is a no-op
+        -(state.GetLocal(inst.args[1])+1) // 0 is a no-op
       );
 
     }
@@ -1880,7 +1880,7 @@ namespace emp {
         );
         hw.GetMatchBin().DecayRegulator(
           target,
-          -state.GetLocal(inst.args[2]) // 0 is a no-op
+          -(state.GetLocal(inst.args[2])+1) // 0 is a no-op
         );
 
       }
@@ -1908,7 +1908,7 @@ namespace emp {
       );
       hw.GetMatchBin().DecayRegulator(
         target,
-        -state.GetLocal(inst.args[2]) // 0 is a no-op
+        -(state.GetLocal(inst.args[2])+1) // 0 is a no-op
       );
 
     }
@@ -1927,7 +1927,7 @@ namespace emp {
       for (const auto & target : targets) {
         hw.GetMatchBin().DecayRegulator(
           target,
-          -state.GetLocal(inst.args[1]) // 0 is a no-op
+          -(state.GetLocal(inst.args[1])+1) // 0 is a no-op
         );
       }
 
@@ -1945,7 +1945,7 @@ namespace emp {
 
       hw.GetMatchBin().DecayRegulator(
         target,
-        -state.GetLocal(inst.args[1]) // 0 is a no-op
+        -(state.GetLocal(inst.args[1])+1) // 0 is a no-op
       );
 
     }

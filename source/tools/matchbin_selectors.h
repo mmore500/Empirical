@@ -255,10 +255,14 @@ namespace emp {
 
   /// Returns matches within the threshold ThreshRatio sorted by match quality.
   template<
-    typename ThreshRatio = std::ratio<-1,1>, // neg numerator means +infy
+    typename ThreshRatio = std::ratio<1,4>, // neg numerator means +infy
     size_t DefaultN = 1
   >
   struct RankedSelector : public SelectorBase<RankedCacheState> {
+
+    void SetCurDePoAmt(const double set) { ; }
+
+    void Decay() { ; }
 
     RankedSelector(emp::Random&){ ; }
 
@@ -611,6 +615,10 @@ namespace emp {
     : rand(rand_)
     { ; }
 
+    void SetCurDePoAmt(const double set) { ; }
+
+    void Decay() { ; }
+
     std::string name() const override {
       return emp::to_string(
         "Sieve Selector (",
@@ -734,7 +742,6 @@ namespace emp {
     internal::ViewOnce<double> cur_depo_amt;
 
     DePoSelector(emp::Random & rand_) { ; }
-    DePoSelector() { ; }
 
     std::string name() const override {
       return emp::to_string(
