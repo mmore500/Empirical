@@ -319,7 +319,7 @@ namespace emp {
                     size_t _PROG_MAX_FUNC_CNT=8,
                     size_t _PROG_MIN_FUNC_LEN=1,
                     size_t _PROG_MAX_FUNC_LEN=32,
-                    size_t _PROG_MAX_TOTAL_LEN=256,
+                    size_t _PROG_MAX_TOTAL_LEN=(size_t)-1,
                     int _PROG_MIN_ARG_VAL=0,
                     int _PROG_MAX_ARG_VAL=15)
       : param_lib(), param_name_map(),
