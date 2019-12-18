@@ -569,9 +569,7 @@ namespace emp {
     /// Get the full byte starting from the bit at a specified index.
     uint8_t GetByte(size_t index) const {
       emp_assert(index < NUM_BYTES);
-      const size_t field_id = Byte2Field(index);
-      const size_t pos_id = Byte2FieldPos(index);
-      return (bit_set[field_id] >> pos_id) & 255;
+      return reinterpret_cast<const unsigned char *>(bit_set)[index];
     }
 
     /// Set the full byte starting at the bit at the specified index.

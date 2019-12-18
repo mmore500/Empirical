@@ -166,7 +166,7 @@ namespace emp {
       emp_assert(bit_set.DebugGetArrayBytes() == in_set.DebugGetArrayBytes(),
                  bit_set.DebugGetArrayBytes(), in_set.DebugGetArrayBytes());
       #endif
-      
+
       const size_t NUM_FIELDS = NumFields();
       for (size_t i = 0; i < NUM_FIELDS; i++) bit_set[i] = in_set[i];
     }
@@ -278,7 +278,7 @@ namespace emp {
       emp_assert(in_set.bit_set != nullptr || in_set.num_bits == 0);
       emp_assert(in_set.bit_set.OK());
       #endif
-      
+
       if (&in_set == this) return *this;
       const size_t in_num_fields = in_set.NumFields();
       const size_t prev_num_fields = NumFields();
