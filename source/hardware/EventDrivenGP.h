@@ -310,6 +310,18 @@ namespace emp {
           return std::tie(id, args, affinity) < std::tie(other.id, other.args, other.affinity);
       }
 
+      #ifdef CEREAL_NVP
+      template <class Archive>
+      void serialize( Archive & ar )
+      {
+        ar(
+          CEREAL_NVP(affinity),
+          CEREAL_NVP(args),
+          CEREAL_NVP(id)
+        );
+      }
+      #endif
+
     };
 
     using inst_t = Instruction;                    //< Convenient Instruction type alias.
@@ -402,6 +414,17 @@ namespace emp {
       void SetInst(size_t pos, const inst_t & inst) {
         inst_seq[pos].Set(inst);
       }
+
+      #ifdef CEREAL_NVP
+      template <class Archive>
+      void serialize( Archive & ar )
+      {
+        ar(
+          CEREAL_NVP(affinity),
+          CEREAL_NVP(inst_seq)
+        );
+      }
+      #endif
 
     };
 
@@ -715,6 +738,17 @@ namespace emp {
           os << '\n';
         }
       }
+
+
+      #ifdef CEREAL_NVP
+      template <class Archive>
+      void serialize( Archive & ar )
+      {
+        ar(
+          CEREAL_NVP(program)
+        );
+      }
+      #endif
 
     };
 

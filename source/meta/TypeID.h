@@ -28,6 +28,16 @@ namespace emp {
 
   using namespace std::string_literals;
 
+  void SetupTypeNames();
+
+  namespace internal {
+    // Internal class to setup type names on startup.
+    struct TypeID_Setup {
+      TypeID_Setup() { SetupTypeNames(); }
+    };
+    static TypeID_Setup _TypeID_Setup;
+  }
+
   /// Basic TypeID data structure.
   struct TypeID {
     struct Info {
@@ -215,6 +225,7 @@ namespace emp {
 
   /// Setup a bunch of standard type names to be more readable.
   void SetupTypeNames() {
+
     // Built-in types.
     GetTypeID<void>().SetName("void");
 
@@ -298,5 +309,22 @@ namespace emp {
 //   };
 
 //}
+
+
+namespace std {
+  /// Hash function to allow BitVector to be used with maps and sets (must be in std).
+  template <>
+  struct hash<emp::TypeID> {
+    std::size_t operator()(const emp::TypeID & id) const {
+      return id.GetID();
+    }
+  };
+
+  /// operator<< to work with ostream (must be in std to work)
+  inline std::ostream & operator<<(std::ostream & out, const emp::TypeID & id) {
+    out << id.GetName();
+    return out;
+  }
+}
 
 #endif
