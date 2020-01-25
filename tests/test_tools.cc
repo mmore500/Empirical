@@ -33,6 +33,7 @@
 #include "tools/BitMatrix.h"
 #include "tools/BitSet.h"
 #include "tools/BitVector.h"
+#include "tools/ContiguousStream.h"
 #include "tools/DFA.h"
 #include "tools/DynamicString.h"
 #include "tools/FunctionSet.h"
@@ -1445,6 +1446,204 @@ TEST_CASE("Test DFA", "[tools]")
   REQUIRE(dfa.Next(0, "aa") == 2);
   REQUIRE(dfa.Next(0, "aaa") == 0);
   REQUIRE(dfa.Next(0, "b")  == 3);
+}
+
+TEST_CASE("Test ContiguousStreamBuf", "[tools]")
+{
+  emp::Random rand(1);
+
+  std::stringstream ss;
+  emp::ContiguousStream cs1;
+  emp::ContiguousStream cs2(1);
+  emp::ContiguousStream cs3(0);
+  emp::ContiguousStream cs4(3);
+
+  std::string temp;
+
+  for (size_t i = 0; i < 3; ++i) {
+    temp = ss.str();
+
+    REQUIRE((
+      std::equal(
+        std::begin(temp),
+        std::end(temp),
+        cs1.cbegin()
+      )
+    ));
+    REQUIRE( temp.size() == cs1.GetSize() );
+
+    REQUIRE((
+      std::equal(
+        std::begin(temp),
+        std::end(temp),
+        cs2.cbegin()
+      )
+    ));
+    REQUIRE( temp.size() == cs2.GetSize() );
+
+    REQUIRE((
+      std::equal(
+        std::begin(temp),
+        std::end(temp),
+        cs3.cbegin()
+      )
+    ));
+    REQUIRE( temp.size() == cs3.GetSize() );
+
+    REQUIRE((
+      std::equal(
+        std::begin(temp),
+        std::end(temp),
+        cs3.cbegin()
+      )
+    ));
+    REQUIRE( temp.size() == cs4.GetSize() );
+
+    // Put in some letters
+    ss << "Hello_World";
+    cs1 << "Hello_World";
+    cs2 << "Hello_World";
+    cs3 << "Hello_World";
+    cs4 << "Hello_World";
+    temp = ss.str();
+
+    REQUIRE((
+      std::equal(
+        std::begin(temp),
+        std::end(temp),
+        cs1.cbegin()
+      )
+    ));
+    REQUIRE( temp.size() == cs1.GetSize() );
+
+    REQUIRE((
+      std::equal(
+        std::begin(temp),
+        std::end(temp),
+        cs2.cbegin()
+      )
+    ));
+    REQUIRE( temp.size() == cs2.GetSize() );
+
+    REQUIRE((
+      std::equal(
+        std::begin(temp),
+        std::end(temp),
+        cs3.cbegin()
+      )
+    ));
+    REQUIRE( temp.size() == cs3.GetSize() );
+
+    REQUIRE((
+      std::equal(
+        std::begin(temp),
+        std::end(temp),
+        cs4.cbegin()
+      )
+    ));
+    REQUIRE( temp.size() == cs4.GetSize() );
+
+    // Make sure flush doesn't break it
+    ss << "Will it flush?" << std::flush << "beep";
+    cs1 << "Will it flush?" << std::flush << "beep";
+    cs2 << "Will it flush?" << std::flush << "beep";
+    cs3 << "Will it flush?" << std::flush << "beep";
+    cs4 << "Will it flush?" << std::flush << "beep";
+    temp = ss.str();
+
+    REQUIRE((
+      std::equal(
+        std::begin(temp),
+        std::end(temp),
+        cs1.cbegin()
+      )
+    ));
+    REQUIRE( temp.size() == cs1.GetSize() );
+
+    REQUIRE((
+      std::equal(
+        std::begin(temp),
+        std::end(temp),
+        cs2.cbegin()
+      )
+    ));
+    REQUIRE( temp.size() == cs2.GetSize() );
+
+    REQUIRE((
+      std::equal(
+        std::begin(temp),
+        std::end(temp),
+        cs3.cbegin()
+      )
+    ));
+    REQUIRE( temp.size() == cs3.GetSize() );
+
+    REQUIRE((
+      std::equal(
+        std::begin(temp),
+        std::end(temp),
+        cs4.cbegin()
+      )
+    ));
+    REQUIRE( temp.size() == cs4.GetSize() );
+
+    // Put in random data
+    for (size_t i = 0; i < 1024; ++i) {
+      const auto draw = rand.GetUInt();
+      ss << draw;
+      cs1 << draw;
+      cs2 << draw;
+      cs3 << draw;
+      cs4 << draw;
+    }
+    temp = ss.str();
+
+    REQUIRE((
+      std::equal(
+        std::begin(temp),
+        std::end(temp),
+        cs1.cbegin()
+      )
+    ));
+    REQUIRE( temp.size() == cs1.GetSize() );
+
+    REQUIRE((
+      std::equal(
+        std::begin(temp),
+        std::end(temp),
+        cs2.cbegin()
+      )
+    ));
+    REQUIRE( temp.size() == cs2.GetSize() );
+
+    REQUIRE((
+      std::equal(
+        std::begin(temp),
+        std::end(temp),
+        cs3.cbegin()
+      )
+    ));
+    REQUIRE( temp.size() == cs3.GetSize() );
+
+    REQUIRE((
+      std::equal(
+        std::begin(temp),
+        std::end(temp),
+        cs4.cbegin()
+      )
+    ));
+    REQUIRE( temp.size() == cs4.GetSize() );
+
+    // Make sure reset works!
+    cs1.Reset();
+    cs2.Reset();
+    cs3.Reset();
+    cs4.Reset();
+    ss.str("");
+    ss.clear();
+
+  }
+
 }
 
 TEST_CASE("Test DynamicString", "[tools]")
@@ -2926,6 +3125,121 @@ TEST_CASE("Test matchbin_utils", "[tools]")
   REQUIRE( std::count(std::begin(res), std::end(res), "salut") > ndraws/2 );
   REQUIRE( std::count(std::begin(res), std::end(res), "salut") < hi_count );
   REQUIRE( std::count(std::begin(res), std::end(res), "hi") > 0 );
+
+  }
+
+  // tests for NopRegulator
+  {
+
+  emp::Random rand(1);
+
+  emp::MatchBin<
+    std::string,
+    emp::AbsDiffMetric,
+    emp::RouletteSelector<>,
+    emp::NopRegulator
+  >bin(rand);
+
+  const size_t ndraws = 1000000;
+  const size_t error = 5000;
+
+  const size_t hi = bin.Put("hi", std::numeric_limits<int>::max()/2);
+  REQUIRE( bin.GetVal(hi) == "hi" );
+  const size_t salut = bin.Put("salut", std::numeric_limits<int>::max()/10);
+  REQUIRE( bin.GetVal(salut) == "salut" );
+
+  REQUIRE( bin.Size() == 2 );
+  REQUIRE( bin.ViewRegulator(hi) == 0.0 );
+  REQUIRE( bin.ViewRegulator(salut) == 0.0 );
+
+  auto res = bin.GetVals(bin.Match(0, ndraws));
+  const size_t count = std::count(std::begin(res), std::end(res), "salut");
+  REQUIRE( count > ndraws/2);
+  REQUIRE( std::count(std::begin(res), std::end(res), "hi") > 0 );
+
+  bin.AdjRegulator(salut, 20.0); // downregulate
+  REQUIRE( bin.ViewRegulator(salut) == 0.0 );
+  REQUIRE( bin.ViewRegulator(hi) == 0.0 );
+  res = bin.GetVals(bin.Match(0, ndraws));
+  REQUIRE( std::count(std::begin(res), std::end(res), "salut") > ndraws/2 );
+  REQUIRE( std::count(std::begin(res), std::end(res), "hi") > 0 );
+
+  bin.AdjRegulator(hi, -20.0); // upregulate
+  bin.AdjRegulator(salut, -20.0); // restore
+  REQUIRE( bin.ViewRegulator(salut) == 0.0 );
+  REQUIRE( bin.ViewRegulator(hi) == 0.0 );
+  res = bin.GetVals(bin.Match(0, ndraws));
+  REQUIRE( std::count(std::begin(res), std::end(res), "salut") > ndraws/2 );
+  REQUIRE( std::count(std::begin(res), std::end(res), "hi") > 0 );
+
+  bin.SetRegulator(salut, 5.0); // downregulate
+  bin.SetRegulator(hi, -5.0); // upregulate
+  REQUIRE( bin.ViewRegulator(salut) == 0.0 );
+  REQUIRE( bin.ViewRegulator(hi) == 0.0 );
+
+  bin.SetRegulator(salut, -1.0); // upregulate
+  bin.SetRegulator(hi, 1.0); // downregulate
+  REQUIRE( bin.ViewRegulator(salut) == 0.0 );
+  REQUIRE( bin.ViewRegulator(hi) == 0.0 );
+  res = bin.GetVals(bin.Match(0, ndraws));
+  const size_t hi_count = std::count(std::begin(res), std::end(res), "salut");
+  REQUIRE( std::max(hi_count, count) - std::min(hi_count, count) < error );
+  REQUIRE( std::count(std::begin(res), std::end(res), "hi") > 0 );
+
+  bin.DecayRegulator(salut, -2);
+  REQUIRE( bin.ViewRegulator(salut) == 0.0 );
+  REQUIRE( bin.ViewRegulator(hi) == 0.0 );
+
+  {
+  res = bin.GetVals(bin.Match(0, ndraws));
+  const size_t s_count = std::count(std::begin(res), std::end(res), "salut");
+  REQUIRE( std::max(s_count, count) - std::min(s_count, count) < error );
+  const size_t h_count = std::count(std::begin(res), std::end(res), "hi");
+  REQUIRE((
+    std::max(h_count, ndraws - count)
+    - std::min(h_count, ndraws - count)
+    < error
+  ));
+  }
+
+  bin.DecayRegulator(salut, 1);
+  bin.DecayRegulator(hi, 0);
+  REQUIRE( bin.ViewRegulator(salut) == 0.0 );
+  REQUIRE( bin.ViewRegulator(hi) == 0.0 );
+
+  {
+  res = bin.GetVals(bin.Match(0, ndraws));
+  const size_t s_count = std::count(std::begin(res), std::end(res), "salut");
+  REQUIRE( std::max(s_count, count) - std::min(s_count, count) < error );
+  REQUIRE( std::max(s_count, hi_count) - std::min(s_count, hi_count) < error );
+  const size_t h_count = std::count(std::begin(res), std::end(res), "hi");
+  REQUIRE((
+    std::max(h_count, ndraws - count)
+    - std::min(h_count, ndraws - count)
+    < error
+  ));
+  }
+
+  bin.DecayRegulator(salut, 500);
+  bin.DecayRegulator(hi, 1);
+  REQUIRE( bin.ViewRegulator(salut) == 0.0 );
+  REQUIRE( bin.ViewRegulator(hi) == 0.0 );
+  REQUIRE( std::count(std::begin(res), std::end(res), "salut") > ndraws/2 );
+  REQUIRE( std::count(std::begin(res), std::end(res), "salut") < hi_count );
+  REQUIRE( std::count(std::begin(res), std::end(res), "hi") > 0 );
+
+  {
+  res = bin.GetVals(bin.Match(0, ndraws));
+  const size_t s_count = std::count(std::begin(res), std::end(res), "salut");
+  REQUIRE( std::max(s_count, count) - std::min(s_count, count) < error );
+  REQUIRE( std::max(s_count, hi_count) - std::min(s_count, hi_count) < error );
+  const size_t h_count = std::count(std::begin(res), std::end(res), "hi");
+  REQUIRE((
+    std::max(h_count, ndraws - count)
+    - std::min(h_count, ndraws - count)
+    < error
+  ));
+  }
 
   }
 
