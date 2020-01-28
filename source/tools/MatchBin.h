@@ -280,6 +280,25 @@ namespace emp {
       }
     }
 
+    std::unordered_map<uid_t, double> ComputeMatchScores(const query_t & query) {
+      // compute distance between query and all stored tags
+      std::unordered_map<tag_t, double> matches;
+      for (const auto &[uid, tag] : state.tags) {
+        if (matches.find(tag) == std::end(matches)) {
+          matches[tag] = metric(query, tag);
+        }
+      }
+
+      // apply regulation to generate match scores
+      std::unordered_map<uid_t, double> scores;
+      for (const auto & uid : state.uids) {
+        scores[uid] = state.regulators.at(uid)(
+          matches.at( state.tags.at(uid) )
+        );
+      }
+      return scores;
+    }
+
     /// Compare a query tag to all stored tags using the distance metric
     /// function and return a vector of unique IDs chosen by the selector
     /// function. Ignore regulators.
