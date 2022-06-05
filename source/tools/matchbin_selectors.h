@@ -24,6 +24,7 @@
 #include <tuple>
 #include <array>
 #include <utility>
+#include <optional>
 
 #include "tools/Binomial.h"
 
