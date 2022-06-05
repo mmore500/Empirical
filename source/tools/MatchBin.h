@@ -147,7 +147,7 @@ namespace emp {
     using uid_t = typename base_t::uid_t;
     using state_t = MatchBinState<Val, tag_t, Regulator>;
 
-  protected:
+  public:
     state_t state;
 
     uid_t uid_stepper;
