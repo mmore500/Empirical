@@ -1492,7 +1492,7 @@ namespace emp {
   }
 
 
-  Request a pointer to the Most-Recent Common Ancestor for the population.
+  // Request a pointer to the Most-Recent Common Ancestor for the population.
   template <typename ORG, typename ORG_INFO, typename DATA_STRUCT>
   Ptr<typename Systematics<ORG, ORG_INFO, DATA_STRUCT>::taxon_t> Systematics<ORG, ORG_INFO, DATA_STRUCT>::GetMRCA() const {
     if (!mrca && num_roots == 1) {  // Determine if we need to calculate the MRCA.
