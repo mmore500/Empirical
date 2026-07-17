@@ -159,15 +159,13 @@
 .value_view {
   padding: 6px 12px;
   display: flex;
-  flex-flow: row nowrap;
+  // Allow controls to wrap onto their own line instead of being squeezed
+  // unreadably thin. The @BootstrapDeviceMedium media query below only
+  // reacts to the browser viewport, so a config panel embedded in a
+  // narrower column (e.g. alongside a canvas) can be squeezed even when
+  // the viewport itself is wide.
+  flex-flow: row wrap;
   grid-column-end: -1; // Spans to last column from wherever it is autoplaced
-
-  //min-width: 270px:
-  // BUG: Setting min-width ideally would result in auto-placement
-  // in a new row when the grid is too small to contain the view
-  // in the second column. However, instead it just forces the
-  // grid out of the viewport. Waiting on widespread subgrid support
-  // to fix, *sigh*.
 
   // This just adds some spacing between components in the view
   > :not(:last-child) {
@@ -177,10 +175,11 @@
   // Determine which controls should grow in the value view
   input {
     &[type=range] {
-      flex: 1 1 auto;
+      flex: 1 1 160px;
     }
     &[type=number] {
       flex: 0 1 100px;
+      min-width: 70px; // stay wide enough to show digits alongside the spinner
     }
     &[type=text] {
       flex: 1 1 auto;
