@@ -178,12 +178,21 @@
   input {
     &[type=range] {
       flex: 1 1 auto;
+      // Firefox, unlike Chrome, won't shrink a range input below its
+      // intrinsic width unless min-width is overridden (its default
+      // is `auto`). Without this, a long setting name squeezes the
+      // number input in the line below down to zero width in Firefox.
+      min-width: 0;
     }
     &[type=number] {
       flex: 0 1 100px;
+      // Keep the numeric value legible instead of letting it get
+      // squeezed away to nothing when the row is compressed.
+      min-width: 60px;
     }
     &[type=text] {
       flex: 1 1 auto;
+      min-width: 0;
     }
   }
 }
